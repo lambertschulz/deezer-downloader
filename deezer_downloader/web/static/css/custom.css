@@ -68,3 +68,14 @@ tr.already-downloaded {
   color: #fff;
   border-color: #28a745;
 }
+
+#results td,
+#results th {
+  padding: 0 8px;
+  vertical-align: middle;
+}
+
+#results td img {
+  display: block;
+}
+
