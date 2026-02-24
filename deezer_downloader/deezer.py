@@ -348,32 +348,34 @@ def get_song_infos_from_deezer_website(search_type, id):
     return songs[0] if search_type == TYPE_TRACK else songs
 
 
-def deezer_search(search, search_type):
+def deezer_search(search, search_type, index=0):
     # search: string (What are you looking for?)
     # search_type: either one of the constants: TYPE_TRACK|TYPE_ALBUM|TYPE_ALBUM_TRACK (TYPE_PLAYLIST is not supported)
-    # return: list of dicts (keys depend on search_type)
+    # index: offset for pagination (used for TYPE_ARTIST_ALBUM)
+    # return: list of dicts, or {'data': list, 'total': int} for TYPE_ARTIST_ALBUM
 
     if search_type not in [TYPE_TRACK, TYPE_ALBUM, TYPE_ARTIST, TYPE_ALBUM_TRACK, TYPE_ARTIST_ALBUM, TYPE_ARTIST_TOP]:
         print("ERROR: search_type is wrong: {}".format(search_type))
         return []
-    search = urllib.parse.quote_plus(search)
+    search_encoded = urllib.parse.quote_plus(search)
     if search_type == TYPE_ALBUM_TRACK:
-        url = f"https://api.deezer.com//album/{search}"
+        url = f"https://api.deezer.com//album/{search_encoded}"
     elif search_type == TYPE_ARTIST_TOP:
-        url = f"https://api.deezer.com/artist/{search}/top?limit=20"
+        url = f"https://api.deezer.com/artist/{search_encoded}/top?limit=20&index={index}"
     elif search_type == TYPE_ARTIST_ALBUM:
-        url = f"https://api.deezer.com/artist/{search}/albums"
+        url = f"https://api.deezer.com/artist/{search_encoded}/albums?limit=20&index={index}"
     else:
-        url = f"https://api.deezer.com/search/{search_type}?q={search}"
+        url = f"https://api.deezer.com/search/{search_type}?q={search_encoded}&limit=20&index={index}"
 
     try:
         resp = session.get(url)
         resp.raise_for_status()
-        data = resp.json()
+        resp_json = resp.json()
         if search_type == TYPE_ALBUM_TRACK:
-            data = data["tracks"]['data']
+            data = resp_json["tracks"]['data']
         else:
-            data = data['data']
+            data = resp_json['data']
+        total = resp_json.get('total', len(data))
     except (requests.exceptions.RequestException, KeyError) as e:
         print(f"ERROR: Could not search for music: {e}")
         return []
@@ -389,10 +391,7 @@ def deezer_search(search, search_type):
             i['img_url'] = item['cover_small']
             i['title'] = ''
             i['preview_url'] = ''
-            i['artist'] = ''
-            if search_type == TYPE_ALBUM:
-                # strange API design? artist is not there when asking for ARTIST_ALBUMs
-                i['artist'] = item['artist']['name']
+            i['artist'] = item.get('artist', {}).get('name', '')
         elif search_type in (TYPE_TRACK, TYPE_ARTIST_TOP, TYPE_ALBUM_TRACK):
             i['id_type'] = TYPE_TRACK
             i['title'] = item['title']
@@ -411,7 +410,9 @@ def deezer_search(search, search_type):
             i['artist_id'] = item['id']
             i['preview_url'] = ''
         return_nice.append(i)
-    return return_nice
+    if search_type == TYPE_ALBUM_TRACK:
+        return return_nice
+    return {'data': return_nice, 'total': total}
 
 
 def parse_deezer_playlist(playlist_id):

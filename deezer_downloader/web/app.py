@@ -11,8 +11,8 @@ import warnings
 import giphypop
 
 from deezer_downloader.configuration import config
-from deezer_downloader.web.music_backend import sched
-from deezer_downloader.deezer import deezer_search, init_deezer_session
+from deezer_downloader.web.music_backend import sched, clean_filename
+from deezer_downloader.deezer import deezer_search, init_deezer_session, get_file_extension
 
 app = Flask(__name__)
 auto_index = AutoIndex(app, config["download_dirs"]["base"], add_url_rules=False)
@@ -142,18 +142,27 @@ def show_queue():
 
 
 @app.route('/search', methods=['POST'])
-@validate_schema("type", "query")
 def search():
     """
     searches for available music in the Deezer library
     para:
-        type: track|album|album_track
+        type: track|album|album_track|artist_album|...
         query: search query
+        index: (optional) pagination offset for artist_album type, default 0
     return:
-        json: [ { artist, id, (title|album) } ]
+        json: [ { artist, id, (title|album) } ]  or  { data: [...], total: N } for artist_album
     """
-    user_input = request.get_json(force=True)
-    results = deezer_search(user_input['query'], user_input['type'])
+    j = request.get_json(force=True)
+    if 'type' not in j or 'query' not in j:
+        return jsonify({"error": "parameters missing, required fields: ('type', 'query')"}), 400
+    if j['type'] not in ["album", "track", "artist", "album_track", "artist_album", "artist_top"]:
+        return jsonify({"error": "type must be album, track, artist, album_track, artist_album or artist_top"}), 400
+    if not isinstance(j['query'], str) or j['query'] == "":
+        return jsonify({"error": "query must be a non-empty string"}), 400
+    index = j.get('index', 0)
+    if not isinstance(index, int) or index < 0:
+        return jsonify({"error": "index must be a non-negative integer"}), 400
+    results = deezer_search(j['query'], j['type'], index=index)
     return jsonify(results)
 
 
@@ -240,6 +249,42 @@ def spotify_playlist_download():
                               add_to_playlist=user_input['add_to_playlist'],
                               create_zip=user_input['create_zip'])
     return jsonify({"task_id": id(task), })
+
+
+@app.route('/check_downloaded', methods=['POST'])
+def check_downloaded():
+    """
+    checks if tracks/albums are already downloaded on disk
+    para:
+        list of { type: 'track'|'album', id: int|str, artist: str, title: str }
+    return:
+        json: { "<id>": true|false }
+    """
+    items = request.get_json(force=True)
+    if not isinstance(items, list):
+        return jsonify({"error": "expected a list"}), 400
+
+    ext = get_file_extension()
+    results = {}
+    for item in items:
+        item_type = item.get('type')
+        artist = item.get('artist', '')
+        title = item.get('title', '')
+        item_id = str(item.get('id'))
+
+        downloaded = False
+        if item_type == 'album':
+            album_dir = clean_filename("{} - {}".format(artist, title))
+            path = os.path.join(config["download_dirs"]["albums"], album_dir)
+            downloaded = os.path.isdir(path)
+        elif item_type == 'track':
+            for check_ext in [ext, 'flac' if ext == 'mp3' else 'mp3']:
+                filename = clean_filename("{} - {}.{}".format(artist, title, check_ext))
+                if os.path.exists(os.path.join(config["download_dirs"]["songs"], filename)):
+                    downloaded = True
+                    break
+        results[item_id] = downloaded
+    return jsonify(results)
 
 
 @app.route('/favorites/deezer', methods=['POST'])

@@ -45,3 +45,26 @@ button.search {
   border-bottom: 3px solid #242424;
   color: #242424;
 }
+
+tr.already-downloaded {
+  background-color: #f0fff4;
+}
+
+#btn-hide-downloaded {
+  margin-top: 10px;
+  margin-left: 12px;
+  padding: 8px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6a6a6a;
+  outline: none !important;
+}
+
+#btn-hide-downloaded.active {
+  background-color: #28a745;
+  color: #fff;
+  border-color: #28a745;
+}

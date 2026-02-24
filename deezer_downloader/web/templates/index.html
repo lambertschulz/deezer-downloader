@@ -90,8 +90,17 @@
             <button id="deezer-search-track" class="btn-category active" href="#">Tracks</button>
             <button id="deezer-search-album" class="btn-category" href="#">Albums</button>
             <button id="deezer-search-artist" class="btn-category" href="#">Artists</button>
+            <button id="btn-hide-downloaded" onclick="toggleHideDownloaded()" title="Hide already downloaded items">
+                <i class="fa fa-check-circle"></i> Hide Downloaded
+            </button>
         </div>
         
+        <div id="pagination-controls" style="display:none; padding: 8px 0;">
+            <button class="btn btn-default" id="btn-prev-page"><i class="fa fa-chevron-left"></i> Previous</button>
+            <span id="pagination-info" style="margin: 0 12px; font-size: 14px; color: #555;"></span>
+            <button class="btn btn-default" id="btn-next-page">Next <i class="fa fa-chevron-right"></i></button>
+        </div>
+
          <table id="results" class="table">
             <thead>
                 <tr>

@@ -1,4 +1,18 @@
 
+let hideDownloaded = false;
+let paginationState = { type: null, query: null, index: 0, total: 0 };
+const PAGE_SIZE = 20;
+
+function toggleHideDownloaded() {
+    hideDownloaded = !hideDownloaded;
+    $("#btn-hide-downloaded").toggleClass("active", hideDownloaded);
+    $("#results > tbody > tr").each(function() {
+        if ($(this).hasClass("already-downloaded")) {
+            $(this).toggle(!hideDownloaded);
+        }
+    });
+}
+
 function deezer_download(music_id, type, add_to_playlist, create_zip) {
     $.post(deezer_downloader_api_root + '/download',
         JSON.stringify({ type: type, music_id: parseInt(music_id), add_to_playlist: add_to_playlist, create_zip: create_zip}),
@@ -93,21 +107,78 @@ $(document).ready(function() {
         deezer_load_list(type, query);
     }
 
-    function deezer_load_list(type, query) {
+    function checkDownloadedStatus(data) {
+        var items = data
+            .filter(function(item) { return item.id_type === 'track' || item.id_type === 'album'; })
+            .map(function(item) {
+                return {
+                    id: item.id,
+                    type: item.id_type,
+                    artist: item.artist,
+                    title: item.id_type === 'album' ? item.album : item.title
+                };
+            });
+        if (items.length === 0) return;
+        $.ajax({
+            url: deezer_downloader_api_root + '/check_downloaded',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(items),
+            success: function(downloadedMap) {
+                for (var id in downloadedMap) {
+                    if (downloadedMap[id]) {
+                        var row = $("tr[data-music-id='" + id + "']");
+                        row.addClass('already-downloaded');
+                        row.find('.download-status').html('<i class="fa fa-check-circle fa-lg" title="already downloaded" style="color: #28a745; margin-right: 4px"></i>');
+                        if (hideDownloaded) row.hide();
+                    }
+                }
+            }
+        });
+    }
+
+    function updatePaginationControls() {
+        var s = paginationState;
+        var start = s.index + 1;
+        var end = Math.min(s.index + PAGE_SIZE, s.total);
+        $("#pagination-info").text(start + "–" + end + " of " + s.total);
+        $("#btn-prev-page").prop("disabled", s.index === 0);
+        $("#btn-next-page").prop("disabled", s.index + PAGE_SIZE >= s.total);
+        $("#pagination-controls").show();
+    }
+
+    function deezer_load_list(type, query, index, artistName) {
+        if (index === undefined) index = 0;
         $.post(deezer_downloader_api_root + '/search',
-            JSON.stringify({ type: type, query: query.toString() }),
-            function(data) {
+            JSON.stringify({ type: type, query: query.toString(), index: index }),
+            function(response) {
+                var data;
+                if (Array.isArray(response)) {
+                    data = response;
+                    $("#pagination-controls").hide();
+                } else {
+                    data = response.data;
+                    paginationState = { type: type, query: query, index: index, total: response.total, artistName: artistName };
+                    updatePaginationControls();
+                }
+                if (artistName) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (!data[i].artist) data[i].artist = artistName;
+                    }
+                }
                 $("#results > tbody").html("");
                 for (var i = 0; i < data.length; i++) {
                     drawTableEntry(data[i], type);
                 }
+                checkDownloadedStatus(data);
         });
     }
 
     function drawTableEntry(rowData, mtype) {
-        var row = $("<tr>");
-        $("#results").append(row); 
+        var row = $("<tr>").attr("data-music-id", rowData.id);
+        $("#results > tbody").append(row);
         var button_col = $("<td style='text-align: end'>");
+        button_col.append($('<span class="download-status"></span>'));
 
         if (mtype === "track" || mtype === "album_track" || mtype === "artist_top") {
             $("#col-title").show();
@@ -144,12 +215,12 @@ $(document).ready(function() {
             $("#col-album").hide();
             $("#col-title").hide();
             row.append($("<td><img src='"+rowData.img_url+"' style='cursor: pointer; border-radius: 29px'></td>")
-                .click(() => deezer_load_list("artist_album", rowData.artist_id)));
+                .click(() => deezer_load_list("artist_album", rowData.artist_id, undefined, rowData.artist)));
             row.append($("<td>" + rowData.artist + "</td>"));
             button_col.append($('<button class="btn btn-default"> <i class="fa fa-arrow-up fa-lg" title="list artist top songs" ></i> </button>')
                 .click(() => deezer_load_list("artist_top", rowData.artist_id)));
             button_col.append($('<button class="btn btn-default"> <i class="fa fa-list fa-lg" title="list artist albums" ></i> </button>')
-                .click(() => deezer_load_list("artist_album", rowData.artist_id)));
+                .click(() => deezer_load_list("artist_album", rowData.artist_id, undefined, rowData.artist)));
         }
         
 
@@ -242,6 +313,15 @@ $(document).ready(function() {
         youtubedl_download(true);
     });
     
+    $("#btn-prev-page").click(function() {
+        var newIndex = Math.max(0, paginationState.index - PAGE_SIZE);
+        deezer_load_list(paginationState.type, paginationState.query, newIndex, paginationState.artistName);
+    });
+
+    $("#btn-next-page").click(function() {
+        deezer_load_list(paginationState.type, paginationState.query, paginationState.index + PAGE_SIZE, paginationState.artistName);
+    });
+
     $("#nav-debug-log").click(function() {
         show_debug_log();
     });
