@@ -69,6 +69,23 @@ tr.already-downloaded {
   border-color: #28a745;
 }
 
+#btn-download-all {
+  padding: 6px 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #495057;
+  outline: none !important;
+}
+
+#btn-download-all:hover {
+  background-color: #242424;
+  color: #fff;
+  border-color: #242424;
+}
+
 #results td,
 #results th {
   padding: 0 8px;

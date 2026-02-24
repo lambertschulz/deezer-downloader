@@ -13,6 +13,23 @@ function toggleHideDownloaded() {
     });
 }
 
+function deezer_download_all_missing() {
+    var rows = $("#results > tbody > tr").not(".already-downloaded");
+    if (rows.length === 0) {
+        $.jGrowl("Nothing to download - all items already downloaded!", { life: 4000 });
+        return;
+    }
+    rows.each(function() {
+        var $row = $(this);
+        var musicId = $row.attr("data-music-id");
+        var idType = $row.attr("data-id-type");
+        if (musicId && idType) {
+            deezer_download(musicId, idType, false, false);
+        }
+    });
+    $.jGrowl(rows.length + " download(s) queued!", { life: 4000 });
+}
+
 function deezer_download(music_id, type, add_to_playlist, create_zip) {
     $.post(deezer_downloader_api_root + '/download',
         JSON.stringify({ type: type, music_id: parseInt(music_id), add_to_playlist: add_to_playlist, create_zip: create_zip}),
@@ -209,12 +226,13 @@ $(document).ready(function() {
                 for (var i = 0; i < data.length; i++) {
                     drawTableEntry(data[i], type);
                 }
+                $("#download-all-bar").toggle(type !== "artist" && data.length > 0);
                 checkDownloadedStatus(data);
         });
     }
 
     function drawTableEntry(rowData, mtype) {
-        var row = $("<tr>").attr("data-music-id", rowData.id);
+        var row = $("<tr>").attr("data-music-id", rowData.id).attr("data-id-type", rowData.id_type);
         $("#results > tbody").append(row);
         var button_col = $("<td style='text-align: end'>");
         button_col.append($('<span class="download-status"></span>'));
