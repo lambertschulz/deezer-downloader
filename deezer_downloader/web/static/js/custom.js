@@ -2,6 +2,8 @@
 let hideDownloaded = false;
 let paginationState = { type: null, query: null, index: 0, total: 0 };
 const PAGE_SIZE = 20;
+var trackedTasks = {}; // taskId -> musicId
+var pollTimer = null;
 
 function toggleHideDownloaded() {
     hideDownloaded = !hideDownloaded;
@@ -31,9 +33,15 @@ function deezer_download_all_missing() {
 }
 
 function deezer_download(music_id, type, add_to_playlist, create_zip) {
+    var row = $("tr[data-music-id='" + music_id + "']");
+    row.find('.download-status').html('<i class="fa fa-clock-o fa-lg" title="queued" style="color: #6a6a6a; margin-right: 4px"></i>');
     $.post(deezer_downloader_api_root + '/download',
         JSON.stringify({ type: type, music_id: parseInt(music_id), add_to_playlist: add_to_playlist, create_zip: create_zip}),
         function(data) {
+            if (data.task_id) {
+                trackedTasks[data.task_id] = music_id;
+                startTaskPolling();
+            }
             if(create_zip == true) {
                 text = "You like being offline? You will get a zip file!";
             }
@@ -52,6 +60,50 @@ function deezer_download(music_id, type, add_to_playlist, create_zip) {
             }
             $.jGrowl(text, { life: 4000 });
             console.log(data);
+    });
+}
+
+function startTaskPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollTaskProgress, 1500);
+}
+
+function pollTaskProgress() {
+    if (Object.keys(trackedTasks).length === 0) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        return;
+    }
+    $.get(deezer_downloader_api_root + '/queue', function(tasks) {
+        var taskMap = {};
+        for (var i = 0; i < tasks.length; i++) {
+            taskMap[tasks[i].id] = tasks[i];
+        }
+        for (var taskId in trackedTasks) {
+            var musicId = trackedTasks[taskId];
+            var task = taskMap[taskId];
+            var row = $("tr[data-music-id='" + musicId + "']");
+            var $status = row.find('.download-status');
+            if (!task) continue;
+
+            if (task.state === "waiting") {
+                $status.html('<i class="fa fa-clock-o fa-lg" title="queued" style="color: #6a6a6a; margin-right: 4px"></i>');
+            } else if (task.state === "active") {
+                if (task.progress[1] > 0) {
+                    $status.html('<i class="fa fa-spinner fa-spin fa-lg" style="color: #007bff; margin-right: 4px"></i><span style="font-size:12px; color:#007bff">' + task.progress[0] + '/' + task.progress[1] + '</span>');
+                } else {
+                    $status.html('<i class="fa fa-spinner fa-spin fa-lg" title="downloading" style="color: #007bff; margin-right: 4px"></i>');
+                }
+            } else if (task.state === "mission accomplished") {
+                row.addClass('already-downloaded');
+                $status.html('<i class="fa fa-check-circle fa-lg" title="downloaded" style="color: #28a745; margin-right: 4px"></i>');
+                if (hideDownloaded) row.hide();
+                delete trackedTasks[taskId];
+            } else if (task.state === "failed") {
+                $status.html('<i class="fa fa-times-circle fa-lg" title="download failed" style="color: #dc3545; margin-right: 4px"></i>');
+                delete trackedTasks[taskId];
+            }
+        }
     });
 }
 
