@@ -136,3 +136,92 @@ tr.already-downloaded {
   color: #6a6a6a;
 }
 
+/* Queue status bar */
+#queue-status-bar {
+  margin: 6px 0 0;
+  padding: 7px 14px;
+  background: #242424;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+#queue-status-bar:hover {
+  background: #333;
+}
+
+#queue-status-text {
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#queue-status-text strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+#queue-status-text .fa-spinner {
+  color: #5bc0de;
+}
+
+#queue-status-text .fa-check-circle {
+  color: #5cb85c;
+}
+
+#queue-status-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+}
+
+#queue-status-progress-fill {
+  height: 100%;
+  background: #5bc0de;
+  transition: width 0.4s ease;
+  width: 0;
+}
+
+/* Queue table styles */
+#task-list td,
+#task-list th {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.queue-state {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.queue-waiting {
+  color: #6a6a6a;
+  background: #f0f0f0;
+}
+
+.queue-active {
+  color: #007bff;
+  background: #e8f4fd;
+}
+
+.queue-done {
+  color: #28a745;
+  background: #f0fff4;
+}
+
+.queue-failed {
+  color: #dc3545;
+  background: #fdf0f0;
+}
+

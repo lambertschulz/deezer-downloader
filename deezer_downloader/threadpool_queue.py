@@ -25,8 +25,8 @@ class ThreadpoolScheduler:
             t.start()
             self.worker_threads.append(t)
 
-    def enqueue_task(self, description, command, **kwargs):
-        q = QueuedTask(description, command, self.commands[command], **kwargs)
+    def enqueue_task(self, description, command, metadata=None, **kwargs):
+        q = QueuedTask(description, command, self.commands[command], metadata=metadata, **kwargs)
         self.task_queue.put(q)
         self.all_tasks.append(q)
         return q
@@ -77,11 +77,12 @@ class WorkerThread(threading.Thread):
 
 
 class QueuedTask:
-    def __init__(self, description, fn_name, fn, **kwargs):
+    def __init__(self, description, fn_name, fn, metadata=None, **kwargs):
         self.description = description
         self.fn_name = fn_name
         self.fn = fn
         self.kwargs = kwargs
+        self.metadata = metadata or {}
         self.state = "waiting"
         self.exception = None
         self.result = None

@@ -78,6 +78,12 @@ def validate_schema(*parameters_to_check):
             if "user_id" in j.keys():
                 if type(j['user_id']) is not str or not j['user_id'].isnumeric():
                     return jsonify({"error": "user_id must be a numeric string"}), 400
+            if "artist" in j.keys():
+                if type(j['artist']) is not str:
+                    return jsonify({"error": "artist must be a string"}), 400
+            if "title" in j.keys():
+                if type(j['title']) is not str:
+                    return jsonify({"error": "title must be a string"}), 400
             return f(*args, **kw)
         return wrapper
     return decorator
@@ -135,7 +141,8 @@ def show_queue():
          'state': escape(task.state),
          'result': escape(task.result),
          'exception': escape(str(task.exception)),
-         'progress': [task.progress, task.progress_maximum]
+         'progress': [task.progress, task.progress_maximum],
+         'metadata': {k: escape(v) for k, v in task.metadata.items()} if task.metadata else {}
         } for task in sched.all_tasks
     ]
     return jsonify(results)
@@ -167,7 +174,7 @@ def search():
 
 
 @app.route('/download', methods=['POST'])
-@validate_schema("type", "music_id", "add_to_playlist", "create_zip")
+@validate_schema("type", "music_id", "add_to_playlist", "create_zip", "artist", "title")
 def deezer_download_song_or_album():
     """
     downloads a song or an album from Deezer to the dir specified in settings.py
@@ -176,15 +183,25 @@ def deezer_download_song_or_album():
         music_id: id of the album or track (int)
         add_to_playlist: True|False (add to mpd playlist)
         create_zip: True|False (create a zip for the album)
+        artist: artist name (str, for display)
+        title: song or album title (str, for display)
     """
     user_input = request.get_json(force=True)
-    desc = "Downloading {}".format(user_input['type'])
+    artist = user_input.get('artist', '')
+    title = user_input.get('title', '')
+    if artist and title:
+        desc = "{}: {} - {}".format(user_input['type'].capitalize(), artist, title)
+    else:
+        desc = "Downloading {}".format(user_input['type'])
+    metadata = {'artist': artist, 'title': title, 'type': user_input['type']}
     if user_input['type'] == "track":
         task = sched.enqueue_task(desc, "download_deezer_song_and_queue",
+                                  metadata=metadata,
                                   track_id=user_input['music_id'],
                                   add_to_playlist=user_input['add_to_playlist'])
     else:
         task = sched.enqueue_task(desc, "download_deezer_album_and_queue_and_zip",
+                                  metadata=metadata,
                                   album_id=user_input['music_id'],
                                   add_to_playlist=user_input['add_to_playlist'],
                                   create_zip=user_input['create_zip'])

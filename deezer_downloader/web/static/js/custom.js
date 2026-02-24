@@ -34,9 +34,11 @@ function deezer_download_all_missing() {
 
 function deezer_download(music_id, type, add_to_playlist, create_zip) {
     var row = $("tr[data-music-id='" + music_id + "']");
+    var artist = row.attr("data-artist") || "";
+    var title = row.attr("data-title") || "";
     row.find('.download-status').html('<i class="fa fa-clock-o fa-lg" title="queued" style="color: #6a6a6a; margin-right: 4px"></i>');
     $.post(deezer_downloader_api_root + '/download',
-        JSON.stringify({ type: type, music_id: parseInt(music_id), add_to_playlist: add_to_playlist, create_zip: create_zip}),
+        JSON.stringify({ type: type, music_id: parseInt(music_id), add_to_playlist: add_to_playlist, create_zip: create_zip, artist: artist, title: title}),
         function(data) {
             if (data.task_id) {
                 trackedTasks[data.task_id] = music_id;
@@ -66,6 +68,55 @@ function deezer_download(music_id, type, add_to_playlist, create_zip) {
 function startTaskPolling() {
     if (pollTimer) return;
     pollTimer = setInterval(pollTaskProgress, 1500);
+}
+
+var statusBarHideTimer = null;
+
+function updateQueueStatusBar(tasks) {
+    var total = tasks.length;
+    if (total === 0) {
+        $("#queue-status-bar").hide();
+        return;
+    }
+    var done = 0, active = 0, waiting = 0, failed = 0;
+    var activeTask = null;
+    for (var i = 0; i < tasks.length; i++) {
+        var s = tasks[i].state;
+        if (s === 'mission accomplished') done++;
+        else if (s === 'active') { active++; activeTask = tasks[i]; }
+        else if (s === 'waiting') waiting++;
+        else if (s === 'failed') { failed++; done++; }
+    }
+    var pending = active + waiting;
+    if (pending === 0) {
+        // All done — show final state briefly, then hide
+        var text = '<i class="fa fa-check-circle"></i> ' + done + '/' + total + ' complete';
+        if (failed > 0) text += ' · <span style="color:#ff6b6b">' + failed + ' failed</span>';
+        $("#queue-status-text").html(text);
+        $("#queue-status-progress-fill").css("width", "100%");
+        $("#queue-status-bar").show();
+        if (statusBarHideTimer) clearTimeout(statusBarHideTimer);
+        statusBarHideTimer = setTimeout(function() { $("#queue-status-bar").fadeOut(400); }, 4000);
+        return;
+    }
+    if (statusBarHideTimer) { clearTimeout(statusBarHideTimer); statusBarHideTimer = null; }
+
+    // Build status text
+    var parts = [];
+    parts.push('<i class="fa fa-download"></i> <strong>' + done + '/' + total + '</strong>');
+    if (activeTask) {
+        var meta = activeTask.metadata || {};
+        var nowPlaying = meta.artist && meta.title ? (meta.artist + ' – ' + meta.title) : activeTask.description;
+        var prog = '';
+        if (activeTask.progress[1] > 0) prog = ' (' + activeTask.progress[0] + '/' + activeTask.progress[1] + ')';
+        parts.push('<i class="fa fa-spinner fa-spin"></i> ' + nowPlaying + prog);
+    }
+    if (waiting > 0) parts.push(waiting + ' waiting');
+
+    $("#queue-status-text").html(parts.join(' · '));
+    var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    $("#queue-status-progress-fill").css("width", pct + "%");
+    $("#queue-status-bar").show();
 }
 
 function pollTaskProgress() {
@@ -104,6 +155,7 @@ function pollTaskProgress() {
                 delete trackedTasks[taskId];
             }
         }
+        updateQueueStatusBar(tasks);
     });
 }
 
@@ -285,6 +337,8 @@ $(document).ready(function() {
 
     function drawTableEntry(rowData, mtype) {
         var row = $("<tr>").attr("data-music-id", rowData.id).attr("data-id-type", rowData.id_type);
+        row.attr("data-artist", rowData.artist || "");
+        row.attr("data-title", rowData.id_type === "album" ? (rowData.album || "") : (rowData.title || ""));
         $("#results > tbody").append(row);
         var button_col = $("<td style='text-align: end'>");
         button_col.append($('<span class="download-status"></span>'));
@@ -359,20 +413,57 @@ $(document).ready(function() {
         });
     }
 
+    function getTypeIcon(task) {
+        var meta = task.metadata || {};
+        var t = meta.type || '';
+        if (t === 'track') return '<i class="fa fa-music" title="Track" style="color:#6a6a6a"></i>';
+        if (t === 'album') return '<i class="fa fa-circle-o" title="Album" style="color:#6a6a6a"></i>';
+        if (task.description && task.description.indexOf('playlist') !== -1) return '<i class="fa fa-list" title="Playlist" style="color:#6a6a6a"></i>';
+        if (task.description && task.description.indexOf('youtube') !== -1) return '<i class="fa fa-youtube-play" title="YouTube" style="color:#6a6a6a"></i>';
+        if (task.description && task.description.indexOf('favorites') !== -1) return '<i class="fa fa-heart" title="Favorites" style="color:#6a6a6a"></i>';
+        return '<i class="fa fa-download" title="Download" style="color:#6a6a6a"></i>';
+    }
+
+    function getStateHtml(task) {
+        var s = task.state;
+        if (s === 'waiting') return '<span class="queue-state queue-waiting"><i class="fa fa-clock-o"></i> Waiting</span>';
+        if (s === 'active') {
+            var prog = '';
+            if (task.progress[1] > 0) prog = ' ' + task.progress[0] + '/' + task.progress[1];
+            return '<span class="queue-state queue-active"><i class="fa fa-spinner fa-spin"></i> Downloading' + prog + '</span>';
+        }
+        if (s === 'mission accomplished') return '<span class="queue-state queue-done"><i class="fa fa-check-circle"></i> Done</span>';
+        if (s === 'failed') return '<span class="queue-state queue-failed"><i class="fa fa-times-circle"></i> Failed</span>';
+        return '<span class="queue-state">' + s + '</span>';
+    }
+
     function show_task_queue() {
         $.get(deezer_downloader_api_root + '/queue', function(data) {
             var queue_table = $("#task-list tbody");
             queue_table.html("");
-            
+
             for (var i = data.length - 1; i >= 0; i--) {
-                var html="<tr><td>"+data[i].description+"</td><td>"+JSON.stringify(data[i].args)+"</td>"+
-                "<td>"+data[i].state+"</td></tr>";
-                $(html).appendTo(queue_table);
-                switch (data[i].state) {
-                case "active":
-                    $("<tr><td colspan=4><progress value="+data[i].progress[0]+" max="+data[i].progress[1]+" style='width:100%'/></td></tr>").appendTo(queue_table);
-                case "failed":
-                    $("<tr><td colspan=4 style='color:red'>"+data[i].exception+"</td></tr>").appendTo(queue_table);
+                var task = data[i];
+                var meta = task.metadata || {};
+                var artist = meta.artist || '';
+                var title = meta.title || '';
+                // Fallback for tasks without metadata (playlists, youtube-dl, etc.)
+                if (!artist && !title) {
+                    artist = task.description;
+                }
+
+                var $row = $("<tr>");
+                $row.append($("<td>").html(getTypeIcon(task)));
+                $row.append($("<td>").text(artist));
+                $row.append($("<td>").text(title));
+                $row.append($("<td>").html(getStateHtml(task)));
+                queue_table.append($row);
+
+                if (task.state === 'active' && task.progress[1] > 0) {
+                    $("<tr><td colspan='4' style='padding:0 8px 8px'><progress value='" + task.progress[0] + "' max='" + task.progress[1] + "' style='width:100%;height:6px'></progress></td></tr>").appendTo(queue_table);
+                }
+                if (task.state === 'failed' && task.exception && task.exception !== 'None') {
+                    $("<tr><td colspan='4' style='color:#dc3545;font-size:12px;padding:0 8px 8px'>" + task.exception + "</td></tr>").appendTo(queue_table);
                 }
             }
             if ($("#nav-task-queue").hasClass("active")) {

@@ -63,6 +63,11 @@
   </ul>
   </div>   <!-- end row -->
 
+  <div id="queue-status-bar" style="display:none" onclick="document.getElementById('nav-task-queue').click()">
+    <div id="queue-status-text"></div>
+    <div id="queue-status-progress"><div id="queue-status-progress-fill"></div></div>
+  </div>
+
   <!-- Tab panes -->
   <div class="tab-content">
     
@@ -202,13 +207,14 @@
     <div id="queue" class="container tab-pane fade">
       <br>
       <h3>Queue</h3>
-       
+
       <table id="task-list" class="table">
         <thead>
             <tr>
-                <th>Description</th>
-                <th>Args</th>
-                <th>State</th>
+                <th style="width:36px"></th>
+                <th>Artist</th>
+                <th>Title</th>
+                <th style="width:140px">Status</th>
             </tr>
         </thead>
         <tbody>
