@@ -137,14 +137,53 @@ $(document).ready(function() {
         });
     }
 
+    function goToPage(page) {
+        deezer_load_list(paginationState.type, paginationState.query, page * PAGE_SIZE, paginationState.artistName);
+    }
+
     function updatePaginationControls() {
         var s = paginationState;
-        var start = s.index + 1;
-        var end = Math.min(s.index + PAGE_SIZE, s.total);
-        $("#pagination-info").text(start + "–" + end + " of " + s.total);
-        $("#btn-prev-page").prop("disabled", s.index === 0);
-        $("#btn-next-page").prop("disabled", s.index + PAGE_SIZE >= s.total);
-        $("#pagination-controls").show();
+        var currentPage = Math.floor(s.index / PAGE_SIZE);
+        var totalPages = Math.ceil(s.total / PAGE_SIZE);
+        var $container = $("#pagination-controls").empty();
+
+        if (totalPages <= 1) { $container.hide(); return; }
+
+        var isFirst = currentPage === 0;
+        var isLast = currentPage === totalPages - 1;
+
+        function addBtn(label, page, disabled, active) {
+            var $btn = $("<button>").addClass("pagination-btn")
+                .html(label).prop("disabled", !!disabled);
+            if (active) $btn.addClass("active");
+            if (!disabled && !active) $btn.click(function() { goToPage(page); });
+            $container.append($btn);
+        }
+
+        addBtn("&laquo;", 0, isFirst);
+        addBtn("Prev", currentPage - 1, isFirst);
+
+        // Window of pages around current
+        var wing = 2;
+        var startPage = Math.max(0, currentPage - wing);
+        var endPage = Math.min(totalPages - 1, currentPage + wing);
+
+        if (startPage > 0) {
+            addBtn("1", 0);
+            if (startPage > 1) $container.append($("<span>").addClass("pagination-ellipsis").text(".."));
+        }
+        for (var p = startPage; p <= endPage; p++) {
+            addBtn(p + 1, p, false, p === currentPage);
+        }
+        if (endPage < totalPages - 1) {
+            if (endPage < totalPages - 2) $container.append($("<span>").addClass("pagination-ellipsis").text(".."));
+            addBtn(totalPages, totalPages - 1);
+        }
+
+        addBtn("Next", currentPage + 1, isLast);
+        addBtn("&raquo;", totalPages - 1, isLast);
+
+        $container.show();
     }
 
     function deezer_load_list(type, query, index, artistName) {
@@ -313,14 +352,6 @@ $(document).ready(function() {
         youtubedl_download(true);
     });
     
-    $("#btn-prev-page").click(function() {
-        var newIndex = Math.max(0, paginationState.index - PAGE_SIZE);
-        deezer_load_list(paginationState.type, paginationState.query, newIndex, paginationState.artistName);
-    });
-
-    $("#btn-next-page").click(function() {
-        deezer_load_list(paginationState.type, paginationState.query, paginationState.index + PAGE_SIZE, paginationState.artistName);
-    });
 
     $("#nav-debug-log").click(function() {
         show_debug_log();

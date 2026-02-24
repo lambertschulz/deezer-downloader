@@ -79,3 +79,43 @@ tr.already-downloaded {
   display: block;
 }
 
+#pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: #495057;
+}
+
+.pagination-btn:hover:not(:disabled):not(.active) {
+  background-color: #e9ecef;
+}
+
+.pagination-btn.active {
+  background-color: #242424;
+  color: #fff;
+  border-color: #242424;
+  cursor: default;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pagination-ellipsis {
+  padding: 0 4px;
+  font-size: 13px;
+  color: #6a6a6a;
+}
+
