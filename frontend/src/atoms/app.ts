@@ -5,7 +5,7 @@ import type {
   SearchType,
   UserProfile,
 } from "@/api/types";
-import type { LibraryTrack, ScanProgress } from "@/lib/library-types";
+import type { LibraryFilter, LibraryTrack, ScanProgress } from "@/lib/library-types";
 
 // --- Tabs ---
 export type TabId = "search" | "deezer" | "debug" | "queue" | "user" | "library";
@@ -88,3 +88,4 @@ export const libraryScanProgressAtom = atom<ScanProgress>({
   skipped: 0,
   currentFile: "",
 });
+export const libraryFiltersAtom = atom<LibraryFilter[]>([]);

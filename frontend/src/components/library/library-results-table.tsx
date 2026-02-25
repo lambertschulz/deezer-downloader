@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { Music, Disc3, User } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { LibraryTrack } from "@/lib/library-types";
+import type { LibraryFilter } from "@/lib/library-types";
 
 // ---- Derived types ----
 
@@ -10,7 +12,6 @@ interface AlbumGroup {
   albumArtist: string;
   trackCount: number;
   totalDuration: number;
-  formats: string[];
 }
 
 interface ArtistGroup {
@@ -43,9 +44,6 @@ function groupAlbums(tracks: LibraryTrack[]): AlbumGroup[] {
     if (existing) {
       existing.trackCount++;
       existing.totalDuration += t.duration ?? 0;
-      if (!existing.formats.includes(t.format)) {
-        existing.formats.push(t.format);
-      }
     } else {
       map.set(key, {
         key,
@@ -53,13 +51,10 @@ function groupAlbums(tracks: LibraryTrack[]): AlbumGroup[] {
         albumArtist: t.albumArtist,
         trackCount: 1,
         totalDuration: t.duration ?? 0,
-        formats: [t.format],
       });
     }
   }
-  return [...map.values()].sort((a, b) =>
-    a.album.localeCompare(b.album),
-  );
+  return [...map.values()].sort((a, b) => a.album.localeCompare(b.album));
 }
 
 function groupArtists(tracks: LibraryTrack[]): ArtistGroup[] {
@@ -85,6 +80,24 @@ function groupArtists(tracks: LibraryTrack[]): ArtistGroup[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function isFilterActive(filters: LibraryFilter[], check: LibraryFilter): boolean {
+  return filters.some((f) => {
+    if (f.type !== check.type) return false;
+    switch (f.type) {
+      case "album":
+        return (
+          check.type === "album" &&
+          f.album === check.album &&
+          f.albumArtist === check.albumArtist
+        );
+      case "artist":
+        return check.type === "artist" && f.name === check.name;
+      case "song":
+        return check.type === "song" && f.path === check.path;
+    }
+  });
+}
+
 // ---- Section header ----
 
 function SectionHeader({
@@ -107,28 +120,50 @@ function SectionHeader({
 
 // ---- Songs section ----
 
-function SongsSection({ tracks }: { tracks: LibraryTrack[] }) {
+function SongsSection({
+  tracks,
+  filters,
+  onToggleFilter,
+}: {
+  tracks: LibraryTrack[];
+  filters: LibraryFilter[];
+  onToggleFilter: (f: LibraryFilter) => void;
+}) {
   return (
     <div className="flex flex-col min-w-0">
       <SectionHeader icon={Music} label="Songs" count={tracks.length} />
       <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[60vh]">
-        {tracks.map((track) => (
-          <div
-            key={track.path}
-            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="truncate font-medium">{track.title}</div>
-              <div className="truncate text-xs text-muted-foreground">
-                {track.artist}
-                {track.album !== "Unknown Album" && ` — ${track.album}`}
+        {tracks.map((track) => {
+          const filter: LibraryFilter = {
+            type: "song",
+            path: track.path,
+            label: track.title,
+          };
+          const active = isFilterActive(filters, filter);
+          return (
+            <button
+              key={track.path}
+              onClick={() => onToggleFilter(filter)}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded transition-colors text-sm text-left",
+                active
+                  ? "bg-primary/15 ring-1 ring-primary/30"
+                  : "hover:bg-muted/50",
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="truncate font-medium">{track.title}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {track.artist}
+                  {track.album !== "Unknown Album" && ` — ${track.album}`}
+                </div>
               </div>
-            </div>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {formatDuration(track.duration)}
-            </span>
-          </div>
-        ))}
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {formatDuration(track.duration)}
+              </span>
+            </button>
+          );
+        })}
         {tracks.length === 0 && (
           <p className="text-xs text-muted-foreground py-4 text-center">
             No songs found
@@ -141,34 +176,57 @@ function SongsSection({ tracks }: { tracks: LibraryTrack[] }) {
 
 // ---- Albums section ----
 
-function AlbumsSection({ tracks }: { tracks: LibraryTrack[] }) {
+function AlbumsSection({
+  tracks,
+  filters,
+  onToggleFilter,
+}: {
+  tracks: LibraryTrack[];
+  filters: LibraryFilter[];
+  onToggleFilter: (f: LibraryFilter) => void;
+}) {
   const albums = useMemo(() => groupAlbums(tracks), [tracks]);
 
   return (
     <div className="flex flex-col min-w-0">
       <SectionHeader icon={Disc3} label="Albums" count={albums.length} />
       <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[60vh]">
-        {albums.map((album) => (
-          <div
-            key={album.key}
-            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="truncate font-medium">{album.album}</div>
-              <div className="truncate text-xs text-muted-foreground">
-                {album.albumArtist}
+        {albums.map((album) => {
+          const filter: LibraryFilter = {
+            type: "album",
+            album: album.album,
+            albumArtist: album.albumArtist,
+            label: album.album,
+          };
+          const active = isFilterActive(filters, filter);
+          return (
+            <button
+              key={album.key}
+              onClick={() => onToggleFilter(filter)}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded transition-colors text-sm text-left",
+                active
+                  ? "bg-primary/15 ring-1 ring-primary/30"
+                  : "hover:bg-muted/50",
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="truncate font-medium">{album.album}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {album.albumArtist}
+                </div>
               </div>
-            </div>
-            <div className="text-right whitespace-nowrap">
-              <div className="text-xs text-muted-foreground">
-                {album.trackCount} tracks
+              <div className="text-right whitespace-nowrap">
+                <div className="text-xs text-muted-foreground">
+                  {album.trackCount} tracks
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {formatTotalDuration(album.totalDuration)}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {formatTotalDuration(album.totalDuration)}
-              </div>
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
         {albums.length === 0 && (
           <p className="text-xs text-muted-foreground py-4 text-center">
             No albums found
@@ -181,31 +239,54 @@ function AlbumsSection({ tracks }: { tracks: LibraryTrack[] }) {
 
 // ---- Artists section ----
 
-function ArtistsSection({ tracks }: { tracks: LibraryTrack[] }) {
+function ArtistsSection({
+  tracks,
+  filters,
+  onToggleFilter,
+}: {
+  tracks: LibraryTrack[];
+  filters: LibraryFilter[];
+  onToggleFilter: (f: LibraryFilter) => void;
+}) {
   const artists = useMemo(() => groupArtists(tracks), [tracks]);
 
   return (
     <div className="flex flex-col min-w-0">
       <SectionHeader icon={User} label="Artists" count={artists.length} />
       <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[60vh]">
-        {artists.map((artist) => (
-          <div
-            key={artist.name}
-            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-sm"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="truncate font-medium">{artist.name}</div>
-            </div>
-            <div className="text-right whitespace-nowrap">
-              <div className="text-xs text-muted-foreground">
-                {artist.trackCount} tracks
+        {artists.map((artist) => {
+          const filter: LibraryFilter = {
+            type: "artist",
+            name: artist.name,
+            label: artist.name,
+          };
+          const active = isFilterActive(filters, filter);
+          return (
+            <button
+              key={artist.name}
+              onClick={() => onToggleFilter(filter)}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded transition-colors text-sm text-left",
+                active
+                  ? "bg-primary/15 ring-1 ring-primary/30"
+                  : "hover:bg-muted/50",
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="truncate font-medium">{artist.name}</div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {artist.albumCount} {artist.albumCount === 1 ? "album" : "albums"}
+              <div className="text-right whitespace-nowrap">
+                <div className="text-xs text-muted-foreground">
+                  {artist.trackCount} tracks
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {artist.albumCount}{" "}
+                  {artist.albumCount === 1 ? "album" : "albums"}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
         {artists.length === 0 && (
           <p className="text-xs text-muted-foreground py-4 text-center">
             No artists found
@@ -218,12 +299,34 @@ function ArtistsSection({ tracks }: { tracks: LibraryTrack[] }) {
 
 // ---- Main export ----
 
-export function LibraryResultsGrid({ tracks }: { tracks: LibraryTrack[] }) {
+interface LibraryResultsGridProps {
+  tracks: LibraryTrack[];
+  filters: LibraryFilter[];
+  onToggleFilter: (f: LibraryFilter) => void;
+}
+
+export function LibraryResultsGrid({
+  tracks,
+  filters,
+  onToggleFilter,
+}: LibraryResultsGridProps) {
   return (
     <div className="grid grid-cols-3 gap-4">
-      <SongsSection tracks={tracks} />
-      <AlbumsSection tracks={tracks} />
-      <ArtistsSection tracks={tracks} />
+      <SongsSection
+        tracks={tracks}
+        filters={filters}
+        onToggleFilter={onToggleFilter}
+      />
+      <AlbumsSection
+        tracks={tracks}
+        filters={filters}
+        onToggleFilter={onToggleFilter}
+      />
+      <ArtistsSection
+        tracks={tracks}
+        filters={filters}
+        onToggleFilter={onToggleFilter}
+      />
     </div>
   );
 }

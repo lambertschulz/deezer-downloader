@@ -7,6 +7,7 @@ import {
   librarySearchResultsAtom,
   libraryScanProgressAtom,
   libraryIsLoadedAtom,
+  libraryFiltersAtom,
 } from "@/atoms/app";
 import {
   getAllTracks,
@@ -19,7 +20,7 @@ import {
   clearDirectoryHandle,
   putScanState,
 } from "@/lib/library-db";
-import type { LibraryTrack } from "@/lib/library-types";
+import type { LibraryFilter, LibraryTrack } from "@/lib/library-types";
 import type { ScanWorkerResponse } from "@/lib/scanner-types";
 
 const FUSE_OPTIONS: IFuseOptions<LibraryTrack> = {
@@ -34,12 +35,43 @@ const FUSE_OPTIONS: IFuseOptions<LibraryTrack> = {
   minMatchCharLength: 2,
 };
 
+function filterKey(f: LibraryFilter): string {
+  switch (f.type) {
+    case "album":
+      return `album:${f.albumArtist}||${f.album}`;
+    case "artist":
+      return `artist:${f.name}`;
+    case "song":
+      return `song:${f.path}`;
+  }
+}
+
+function applyFilters(
+  tracks: LibraryTrack[],
+  filters: LibraryFilter[],
+): LibraryTrack[] {
+  if (filters.length === 0) return tracks;
+  return tracks.filter((t) =>
+    filters.every((f) => {
+      switch (f.type) {
+        case "album":
+          return t.album === f.album && t.albumArtist === f.albumArtist;
+        case "artist":
+          return t.artist === f.name;
+        case "song":
+          return t.path === f.path;
+      }
+    }),
+  );
+}
+
 export function useLibrary() {
   const [tracks, setTracks] = useAtom(libraryTracksAtom);
   const [searchQuery, setSearchQuery] = useAtom(librarySearchQueryAtom);
   const setSearchResults = useSetAtom(librarySearchResultsAtom);
   const [scanProgress, setScanProgress] = useAtom(libraryScanProgressAtom);
   const [isLoaded, setIsLoaded] = useAtom(libraryIsLoadedAtom);
+  const [filters, setFilters] = useAtom(libraryFiltersAtom);
 
   const fuseRef = useRef<Fuse<LibraryTrack> | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -75,6 +107,32 @@ export function useLibrary() {
     },
     [setSearchQuery, setSearchResults],
   );
+
+  // ---- Filters ----
+  const toggleFilter = useCallback(
+    (filter: LibraryFilter) => {
+      setFilters((prev) => {
+        const key = filterKey(filter);
+        const exists = prev.some((f) => filterKey(f) === key);
+        if (exists) return prev.filter((f) => filterKey(f) !== key);
+        return [...prev, filter];
+      });
+    },
+    [setFilters],
+  );
+
+  const removeFilter = useCallback(
+    (filter: LibraryFilter) => {
+      setFilters((prev) =>
+        prev.filter((f) => filterKey(f) !== filterKey(filter)),
+      );
+    },
+    [setFilters],
+  );
+
+  const clearFilters = useCallback(() => {
+    setFilters([]);
+  }, [setFilters]);
 
   // ---- File System Access API support ----
   const isSupported =
@@ -246,6 +304,7 @@ export function useLibrary() {
     await clearTracks();
     setTracks([]);
     setSearchResults([]);
+    setFilters([]);
     setHasStoredHandle(false);
     setScanProgress({
       status: "idle",
@@ -254,7 +313,7 @@ export function useLibrary() {
       skipped: 0,
       currentFile: "",
     });
-  }, [setTracks, setSearchResults, setScanProgress]);
+  }, [setTracks, setSearchResults, setFilters, setScanProgress]);
 
   // ---- Stored handle state ----
   const [hasStoredHandle, setHasStoredHandle] = useState(false);
@@ -270,6 +329,11 @@ export function useLibrary() {
     hasStoredHandle,
     searchQuery,
     search,
+    filters,
+    toggleFilter,
+    removeFilter,
+    clearFilters,
+    applyFilters,
     scanProgress,
     startScan,
     abortScan,

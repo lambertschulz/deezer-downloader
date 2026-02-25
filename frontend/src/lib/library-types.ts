@@ -34,3 +34,8 @@ export interface ScanProgress {
   currentFile: string;
   message?: string;
 }
+
+export type LibraryFilter =
+  | { type: "album"; album: string; albumArtist: string; label: string }
+  | { type: "artist"; name: string; label: string }
+  | { type: "song"; path: string; label: string };
