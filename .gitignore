@@ -9,3 +9,5 @@ dist
 *.sh
 .venv
 *.ini
+frontend/node_modules
+frontend/dist

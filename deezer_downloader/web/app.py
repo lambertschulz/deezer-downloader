@@ -4,7 +4,7 @@ from subprocess import Popen, PIPE
 from functools import wraps
 import requests
 import atexit
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from markupsafe import escape
 from flask_autoindex import AutoIndex
 import warnings
@@ -89,12 +89,30 @@ def validate_schema(*parameters_to_check):
     return decorator
 
 
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'dist')
+
+
 @app.route("/")
 def index():
+    index_path = os.path.join(FRONTEND_DIST, 'index.html')
+    if os.path.exists(index_path):
+        with open(index_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        config_script = '<script>window.__CONFIG__={{apiRoot:"{}",useMpd:{}}}</script>'.format(
+            config['http']['api_root'],
+            str(config['mpd'].getboolean('use_mpd')).lower()
+        )
+        html = html.replace('</head>', config_script + '\n</head>')
+        return html
     return render_template("index.html",
                            api_root=config["http"]["api_root"],
                            static_root=config["http"]["static_root"],
                            use_mpd=str(config['mpd'].getboolean('use_mpd')).lower())
+
+
+@app.route('/assets/<path:path>')
+def serve_react_assets(path):
+    return send_from_directory(os.path.join(FRONTEND_DIST, 'assets'), path)
 
 
 @app.route("/debug")
