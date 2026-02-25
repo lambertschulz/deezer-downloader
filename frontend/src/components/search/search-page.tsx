@@ -70,18 +70,19 @@ export function SearchPage() {
       type: "track" | "album",
       addToPlaylist: boolean,
       createZip: boolean,
+      artist: string,
+      title: string,
     ) => {
-      const item = results.find((r) => r.id === musicId);
       download({
         type,
         music_id: parseInt(musicId, 10),
         add_to_playlist: addToPlaylist,
         create_zip: createZip,
-        artist: item?.artist ?? "",
-        title: type === "track" ? (item?.title ?? "") : (item?.album ?? ""),
+        artist,
+        title,
       });
     },
-    [results, download],
+    [download],
   );
 
   const handleDownloadAll = useCallback(() => {

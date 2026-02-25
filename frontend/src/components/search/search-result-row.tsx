@@ -22,7 +22,7 @@ interface SearchResultRowProps {
   downloadStatus?: DownloadStatus;
   hidden: boolean;
   onPreview: (url: string) => void;
-  onDownload: (musicId: string, type: "track" | "album", addToPlaylist: boolean, createZip: boolean) => void;
+  onDownload: (musicId: string, type: "track" | "album", addToPlaylist: boolean, createZip: boolean, artist: string, title: string) => void;
   onDrillAlbumTracks: (albumId: string, albumName: string) => void;
   onDrillArtistAlbums: (artistId: string, artistName: string) => void;
   onDrillArtistTop: (artistId: string, artistName: string) => void;
@@ -130,7 +130,7 @@ export function SearchResultRow({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => onDownload(item.id, "track", true, false)}
+                  onClick={() => onDownload(item.id, "track", true, false, item.artist, item.title)}
                   title="Download & Queue"
                 >
                   <Play className="h-4 w-4" />
@@ -140,7 +140,7 @@ export function SearchResultRow({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => onDownload(item.id, "track", false, false)}
+                onClick={() => onDownload(item.id, "track", false, false, item.artist, item.title)}
                 title="Download"
               >
                 <Download className="h-4 w-4" />
@@ -167,7 +167,7 @@ export function SearchResultRow({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => onDownload(item.id, "album", true, false)}
+                  onClick={() => onDownload(item.id, "album", true, false, item.artist, item.album)}
                   title="Download & Queue"
                 >
                   <Play className="h-4 w-4" />
@@ -177,7 +177,7 @@ export function SearchResultRow({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => onDownload(item.id, "album", false, false)}
+                onClick={() => onDownload(item.id, "album", false, false, item.artist, item.album)}
                 title="Download"
               >
                 <Download className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function SearchResultRow({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => onDownload(item.id, "album", false, true)}
+                onClick={() => onDownload(item.id, "album", false, true, item.artist, item.album)}
                 title="Download as ZIP"
               >
                 <Archive className="h-4 w-4" />
