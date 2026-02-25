@@ -30,19 +30,57 @@ TYPE_ARTIST_TOP = "artist_top" # used for listing top tracks of an artist
 session = None
 license_token = {}
 sound_format = ""
+user_data = {}
 USER_AGENT = "Mozilla/5.0 (X11; Linux i686; rv:135.0) Gecko/20100101 Firefox/135.0"
 
 
 def get_user_data() -> tuple[str, str]:
+    global user_data
     try:
-        user_data = session.get('https://www.deezer.com/ajax/gw-light.php?method=deezer.getUserData&input=3&api_version=1.0&api_token=')
-        user_data_json = user_data.json()['results']
-        options = user_data_json['USER']['OPTIONS']
+        resp = session.get('https://www.deezer.com/ajax/gw-light.php?method=deezer.getUserData&input=3&api_version=1.0&api_token=')
+        results = resp.json()['results']
+        user_obj = results['USER']
+        options = user_obj['OPTIONS']
         license_token = options['license_token']
         web_sound_quality = options['web_sound_quality']
+        picture = user_obj.get('USER_PICTURE', '')
+        user_data = {
+            'user_id': str(user_obj.get('USER_ID', '')),
+            'name': user_obj.get('BLOG_NAME', ''),
+            'picture': picture,
+            'picture_url': f"https://e-cdns-images.dzcdn.net/images/user/{picture}/56x56-000000-80-0-0.jpg" if picture else '',
+        }
         return license_token, web_sound_quality
     except (requests.exceptions.RequestException, KeyError) as e:
         print(f"ERROR: Could not get license token: {e}")
+        user_data = {}
+        raise
+
+
+def get_current_user() -> dict:
+    return dict(user_data)
+
+
+def get_user_playlists() -> list[dict]:
+    uid = user_data.get('user_id', '')
+    if not uid:
+        return []
+    resp = session.get(f"https://api.deezer.com/user/{uid}/playlists?limit=100")
+    resp.raise_for_status()
+    data = resp.json()
+    if 'error' in data:
+        raise DeezerApiException(f"API error: {data['error']}")
+    playlists = []
+    for item in data.get('data', []):
+        playlists.append({
+            'id': str(item['id']),
+            'title': item['title'],
+            'nb_tracks': item.get('nb_tracks', 0),
+            'picture_url': item.get('picture_medium', item.get('picture_small', '')),
+            'link': item.get('link', ''),
+            'is_loved_track': item.get('is_loved_track', False),
+        })
+    return playlists
 
 
 # quality_config comes from config file

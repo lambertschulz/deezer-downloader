@@ -14,7 +14,7 @@ export function Footer() {
         </span>
         <span>
           <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
-            Ctrl+Shift+1-5
+            Ctrl+Shift+1-6
           </kbd>{" "}
           Switch tabs
         </span>

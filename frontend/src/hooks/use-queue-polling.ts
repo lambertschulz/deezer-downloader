@@ -8,7 +8,7 @@ import {
   hasTrackedTasksAtom,
   activeTabAtom,
 } from "@/atoms/app";
-import type { QueueTask } from "@/api/types";
+import type { DownloadStatus, QueueTask } from "@/api/types";
 import { useEffect, useRef } from "react";
 
 export function useQueuePolling() {
@@ -43,7 +43,7 @@ export function useQueuePolling() {
     }
 
     const currentTracked = trackedTasksRef.current;
-    const newStatusMap: Record<string, string> = {};
+    const newStatusMap: Record<string, DownloadStatus> = {};
     const tasksToRemove: string[] = [];
 
     for (const [taskId, musicId] of Object.entries(currentTracked)) {

@@ -1,18 +1,21 @@
 import sys
 import os
+import re
 from pathlib import Path
 from configparser import ConfigParser
 
 config = None
+config_path = None
 
 
 def load_config(config_abs):
-    global config
+    global config, config_path
 
     if not os.path.exists(config_abs):
         print(f"Could not find config file: {config_abs}")
         sys.exit(1)
 
+    config_path = config_abs
     config = ConfigParser()
     config.read(config_abs)
 
@@ -38,8 +41,7 @@ def load_config(config_abs):
         config["deezer"]["cookie_arl"] = os.environ["DEEZER_COOKIE_ARL"]
 
     if len(config["deezer"]["cookie_arl"].strip()) == 0:
-        print("ERROR: cookie_arl must not be empty")
-        sys.exit(1)
+        print("WARNING: cookie_arl is empty. Set it via the web frontend.")
 
     if "DEEZER_QUALITY" in os.environ.keys():
         config["deezer"]["quality"] = os.environ["DEEZER_QUALITY"]
@@ -51,3 +53,17 @@ def load_config(config_abs):
     else:
         print("Warning: quality not set in config file. Using mp3")
         config["deezer"]["quality"] = "mp3"
+
+
+def save_arl_to_config(new_arl: str) -> None:
+    if not re.fullmatch(r'[a-fA-F0-9]{192}', new_arl):
+        raise ValueError("ARL must be exactly 192 hex characters")
+    if "DEEZER_COOKIE_ARL" in os.environ:
+        print("Warning: DEEZER_COOKIE_ARL env var is set. "
+              "The env var will take precedence on next restart.")
+    config['deezer']['cookie_arl'] = new_arl
+    with open(config_path, 'r') as f:
+        content = f.read()
+    content = re.sub(r'(cookie_arl\s*=\s*).*', rf'\g<1>{new_arl}', content)
+    with open(config_path, 'w') as f:
+        f.write(content)

@@ -10,9 +10,9 @@ from flask_autoindex import AutoIndex
 import warnings
 import giphypop
 
-from deezer_downloader.configuration import config
+from deezer_downloader.configuration import config, save_arl_to_config
 from deezer_downloader.web.music_backend import sched, clean_filename
-from deezer_downloader.deezer import deezer_search, init_deezer_session, get_file_extension
+from deezer_downloader.deezer import deezer_search, init_deezer_session, get_file_extension, get_current_user, get_user_playlists
 
 app = Flask(__name__)
 auto_index = AutoIndex(app, config["download_dirs"]["base"], add_url_rules=False)
@@ -24,8 +24,12 @@ giphy = giphypop.Giphy()
 
 def init():
     sched.run_workers(config.getint('threadpool', 'workers'))
-    init_deezer_session(config['proxy']['server'],
-                        config['deezer']['quality'])
+    try:
+        init_deezer_session(config['proxy']['server'],
+                            config['deezer']['quality'])
+    except Exception as e:
+        print(f"WARNING: Could not initialize Deezer session: {e}")
+        print("Set ARL cookie via the web frontend to proceed.")
 
     @atexit.register
     def stop_workers():
@@ -341,3 +345,38 @@ def deezer_favorites_download():
                               add_to_playlist=user_input['add_to_playlist'],
                               create_zip=user_input['create_zip'])
     return jsonify({"task_id": id(task), })
+
+
+@app.route('/user/me', methods=['GET'])
+def get_user_profile():
+    user = get_current_user()
+    if not user or not user.get('user_id'):
+        return jsonify({'error': 'No user session. Set ARL cookie first.'}), 401
+    return jsonify(user)
+
+
+@app.route('/user/arl', methods=['POST'])
+def set_arl():
+    j = request.get_json(force=True)
+    arl = j.get('arl', '').strip()
+    if not arl:
+        return jsonify({'error': 'arl is required'}), 400
+    try:
+        save_arl_to_config(arl)
+        init_deezer_session(config['proxy']['server'],
+                            config['deezer']['quality'])
+        user = get_current_user()
+        return jsonify({'success': True, 'user': user})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to initialize session: {e}'}), 500
+
+
+@app.route('/user/playlists', methods=['GET'])
+def user_playlists():
+    try:
+        playlists = get_user_playlists()
+        return jsonify(playlists)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

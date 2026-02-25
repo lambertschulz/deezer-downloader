@@ -1,9 +1,18 @@
 import { atom } from "jotai";
-import type { DownloadStatus, SearchResult, SearchType } from "@/api/types";
+import type {
+  DownloadStatus,
+  SearchResult,
+  SearchType,
+  UserProfile,
+} from "@/api/types";
 
 // --- Tabs ---
-export type TabId = "search" | "deezer" | "debug" | "queue";
+export type TabId = "search" | "deezer" | "debug" | "queue" | "user";
 export const activeTabAtom = atom<TabId>("search");
+
+// --- User ---
+export const userProfileAtom = atom<UserProfile | null>(null);
+export const showArlInputAtom = atom(false);
 
 // --- Search ---
 export const searchQueryAtom = atom("");

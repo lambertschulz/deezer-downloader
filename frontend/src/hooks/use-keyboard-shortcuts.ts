@@ -13,6 +13,7 @@ const TAB_SHORTCUTS: Record<string, TabId> = {
   "2": "deezer",
   "3": "debug",
   "4": "queue",
+  "5": "user",
 };
 
 export function useKeyboardShortcuts({
@@ -45,8 +46,8 @@ export function useKeyboardShortcuts({
           e.preventDefault();
           setActiveTab(tab);
         }
-        // Ctrl+Shift+5 → open files in new window
-        if (e.key === "5") {
+        // Ctrl+Shift+6 → open files in new window
+        if (e.key === "6") {
           e.preventDefault();
           window.open("/downloads/", "_blank");
         }

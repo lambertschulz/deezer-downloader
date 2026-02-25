@@ -57,7 +57,7 @@ export const queueTaskSchema = z.object({
       title: z.string().optional(),
       type: z.string().optional(),
     })
-    .default({}),
+    .optional(),
 });
 
 export const queueResponseSchema = z.array(queueTaskSchema);
@@ -77,6 +77,31 @@ export const checkDownloadedResponseSchema = z.record(z.string(), z.boolean());
 export const debugResponseSchema = z.object({
   debug_msg: z.string(),
 });
+
+// --- User ---
+
+export const userProfileSchema = z.object({
+  user_id: z.string(),
+  name: z.string(),
+  picture: z.string(),
+  picture_url: z.string(),
+});
+
+export const setArlResponseSchema = z.object({
+  success: z.boolean(),
+  user: userProfileSchema,
+});
+
+export const userPlaylistSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  nb_tracks: z.number(),
+  picture_url: z.string(),
+  link: z.string(),
+  is_loved_track: z.boolean(),
+});
+
+export const userPlaylistsResponseSchema = z.array(userPlaylistSchema);
 
 // --- Error ---
 
