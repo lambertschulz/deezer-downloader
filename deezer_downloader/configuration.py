@@ -67,3 +67,45 @@ def save_arl_to_config(new_arl: str) -> None:
     content = re.sub(r'(cookie_arl\s*=\s*).*', rf'\g<1>{new_arl}', content)
     with open(config_path, 'w') as f:
         f.write(content)
+
+
+def save_download_base_to_config(new_base: str) -> None:
+    new_base = new_base.strip()
+    if not new_base:
+        raise ValueError("Download base path cannot be empty")
+    path = Path(new_base)
+    if not path.is_absolute():
+        raise ValueError("Download base must be an absolute path")
+    config['download_dirs']['base'] = new_base
+    with open(config_path, 'r') as f:
+        content = f.read()
+    content = re.sub(r'(base\s*=\s*).*', rf'\g<1>{new_base}', content, count=1)
+    with open(config_path, 'w') as f:
+        f.write(content)
+
+
+def save_library_path_to_config(new_path: str) -> None:
+    new_path = new_path.strip()
+    if new_path:
+        path = Path(new_path)
+        if not path.is_absolute():
+            raise ValueError("Library path must be an absolute path")
+    config['download_dirs']['library_path'] = new_path
+    with open(config_path, 'r') as f:
+        content = f.read()
+    if re.search(r'library_path\s*=', content):
+        content = re.sub(r'(library_path\s*=\s*).*', rf'\g<1>{new_path}', content)
+    else:
+        content = re.sub(
+            r'(base\s*=\s*.*)',
+            rf'\1\nlibrary_path = {new_path}',
+            content,
+            count=1
+        )
+    with open(config_path, 'w') as f:
+        f.write(content)
+
+
+def get_library_path() -> str:
+    lib = config.get('download_dirs', 'library_path', fallback='').strip()
+    return lib if lib else config['download_dirs']['base']

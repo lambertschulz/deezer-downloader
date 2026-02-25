@@ -5,9 +5,10 @@ import type {
   SearchType,
   UserProfile,
 } from "@/api/types";
+import type { LibraryTrack, ScanProgress } from "@/lib/library-types";
 
 // --- Tabs ---
-export type TabId = "search" | "deezer" | "debug" | "queue" | "user";
+export type TabId = "search" | "deezer" | "debug" | "queue" | "user" | "library";
 export const activeTabAtom = atom<TabId>("search");
 
 // --- User ---
@@ -74,3 +75,16 @@ export const untrackTaskAtom = atom(null, (get, set, taskId: string) => {
 
 // --- Search results stored separately for TanStack Query cache bypass ---
 export const searchResultsAtom = atom<SearchResult[]>([]);
+
+// --- Library ---
+export const libraryTracksAtom = atom<LibraryTrack[]>([]);
+export const librarySearchQueryAtom = atom("");
+export const librarySearchResultsAtom = atom<LibraryTrack[]>([]);
+export const libraryIsLoadedAtom = atom(false);
+export const libraryScanProgressAtom = atom<ScanProgress>({
+  status: "idle",
+  scanned: 0,
+  total: 0,
+  skipped: 0,
+  currentFile: "",
+});

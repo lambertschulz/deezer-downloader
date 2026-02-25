@@ -103,6 +103,14 @@ export const userPlaylistSchema = z.object({
 
 export const userPlaylistsResponseSchema = z.array(userPlaylistSchema);
 
+// --- Config Paths ---
+
+export const configPathsSchema = z.object({
+  download_base: z.string(),
+  library_path: z.string(),
+  effective_library_path: z.string(),
+});
+
 // --- Error ---
 
 export const apiErrorSchema = z.object({

@@ -22,7 +22,11 @@ export default defineConfig({
       "/favorites": "http://127.0.0.1:5000",
       "/debug": "http://127.0.0.1:5000",
       "/downloads": "http://127.0.0.1:5000",
+      "/config": "http://127.0.0.1:5000",
     },
+  },
+  worker: {
+    format: "es",
   },
   build: {
     outDir: "dist",

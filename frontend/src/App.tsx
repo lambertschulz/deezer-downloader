@@ -9,6 +9,7 @@ import { QueuePage } from "@/components/queue/queue-page";
 import { DeezerPage } from "@/components/deezer/deezer-page";
 import { DebugPage } from "@/components/debug/debug-page";
 import { UserPage } from "@/components/user/user-page";
+import { LibraryPage } from "@/components/library/library-page";
 import { useUser } from "@/hooks/use-user";
 import { activeTabAtom } from "@/atoms/app";
 
@@ -29,6 +30,7 @@ function TabContent() {
     <div className="flex-1 overflow-auto">
       {activeTab === "search" && <SearchPage />}
       {activeTab === "deezer" && <DeezerPage />}
+      {activeTab === "library" && <LibraryPage />}
       {activeTab === "user" && <UserPage />}
       {activeTab === "debug" && <DebugPage />}
       {activeTab === "queue" && <QueuePage />}

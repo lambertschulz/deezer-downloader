@@ -8,6 +8,7 @@ import type {
   checkDownloadedResponseSchema,
   userProfileSchema,
   userPlaylistSchema,
+  configPathsSchema,
 } from "./schemas";
 
 export type SearchType = z.infer<typeof searchTypeSchema>;
@@ -51,6 +52,8 @@ export interface CheckDownloadedItem {
 
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type UserPlaylist = z.infer<typeof userPlaylistSchema>;
+
+export type ConfigPaths = z.infer<typeof configPathsSchema>;
 
 export type DownloadStatus =
   | "idle"

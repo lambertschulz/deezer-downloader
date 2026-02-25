@@ -10,7 +10,7 @@ from flask_autoindex import AutoIndex
 import warnings
 import giphypop
 
-from deezer_downloader.configuration import config, save_arl_to_config
+from deezer_downloader.configuration import config, save_arl_to_config, save_download_base_to_config, save_library_path_to_config, get_library_path
 from deezer_downloader.web.music_backend import sched, clean_filename
 from deezer_downloader.deezer import deezer_search, init_deezer_session, get_file_extension, get_current_user, get_user_playlists
 
@@ -380,3 +380,39 @@ def user_playlists():
         return jsonify(playlists)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/config/paths', methods=['GET'])
+def get_config_paths():
+    return jsonify({
+        'download_base': config['download_dirs']['base'],
+        'library_path': config.get('download_dirs', 'library_path', fallback=''),
+        'effective_library_path': get_library_path(),
+    })
+
+
+@app.route('/config/paths', methods=['POST'])
+def set_config_paths():
+    j = request.get_json(force=True)
+    errors = []
+
+    if 'download_base' in j:
+        try:
+            save_download_base_to_config(j['download_base'])
+        except ValueError as e:
+            errors.append(f"download_base: {e}")
+
+    if 'library_path' in j:
+        try:
+            save_library_path_to_config(j['library_path'])
+        except ValueError as e:
+            errors.append(f"library_path: {e}")
+
+    if errors:
+        return jsonify({'error': '; '.join(errors)}), 400
+
+    return jsonify({
+        'download_base': config['download_dirs']['base'],
+        'library_path': config.get('download_dirs', 'library_path', fallback=''),
+        'effective_library_path': get_library_path(),
+    })

@@ -13,6 +13,7 @@ import {
   FolderOpen,
   User,
   KeyRound,
+  Library,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { ArlInput } from "./arl-input";
 const tabs: { id: TabId | "files"; label: string; icon: typeof Search }[] = [
   { id: "search", label: "Search", icon: Search },
   { id: "deezer", label: "Deezer", icon: Music },
+  { id: "library", label: "Library", icon: Library },
   { id: "user", label: "My Playlists", icon: User },
   { id: "debug", label: "Debug", icon: Bug },
   { id: "queue", label: "Queue", icon: ListOrdered },
