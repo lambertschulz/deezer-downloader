@@ -240,7 +240,7 @@ export function LibraryEnrichPanel() {
               <Sparkles className="h-4 w-4 mr-1.5" />
               Start Metadata Enrichment
               {metadataMissing > 0 && (
-                <Badge variant="outline" className="ml-2">
+                <Badge variant="secondary" className="ml-2">
                   ~{metadataMissing}
                 </Badge>
               )}
@@ -297,7 +297,7 @@ export function LibraryEnrichPanel() {
               <Gauge className="h-4 w-4 mr-1.5" />
               Start BPM Analysis
               {missingBpm > 0 && (
-                <Badge variant="outline" className="ml-2">
+                <Badge variant="secondary" className="ml-2">
                   {missingBpm} tracks
                 </Badge>
               )}
