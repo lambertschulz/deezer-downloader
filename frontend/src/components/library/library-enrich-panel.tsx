@@ -87,10 +87,24 @@ function ProgressPanel({ progress }: { progress: EnrichmentProgress }) {
         }
       />
 
-      {isActive && progress.currentTrack && (
-        <div className="text-xs text-muted-foreground truncate">
-          {progress.currentTrack}
+      {isActive && progress.activeTracks && progress.activeTracks.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {progress.activeTracks.map((name) => (
+            <div
+              key={name}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <Loader2 className="h-3 w-3 animate-spin shrink-0 text-primary" />
+              <span className="truncate">{name}</span>
+            </div>
+          ))}
         </div>
+      ) : (
+        isActive && progress.currentTrack && (
+          <div className="text-xs text-muted-foreground truncate">
+            {progress.currentTrack}
+          </div>
+        )
       )}
 
       <div className="flex gap-4 text-xs">

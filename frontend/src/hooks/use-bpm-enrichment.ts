@@ -69,6 +69,16 @@ export function useBpmEnrichment() {
       let failed = 0;
       const updatedTracks: LibraryTrack[] = [];
 
+      // Track currently active slots for UI display
+      const activeSlots = new Map<string, string>();
+
+      function syncActiveToProgress() {
+        setProgress((prev) => ({
+          ...prev,
+          activeTracks: Array.from(activeSlots.values()),
+        }));
+      }
+
       // Concurrency limiter
       let activeCount = 0;
       const waiters: (() => void)[] = [];
@@ -92,6 +102,10 @@ export function useBpmEnrichment() {
         promises.push(
           withSlot(async () => {
             if (abortRef.current) return;
+
+            const trackLabel = `${track.artist} - ${track.title}`;
+            activeSlots.set(track.path, trackLabel);
+            syncActiveToProgress();
 
             try {
               const fileHandle = await resolveFileHandle(
@@ -132,13 +146,15 @@ export function useBpmEnrichment() {
             } catch {
               failed++;
             } finally {
+              activeSlots.delete(track.path);
               processed++;
               setProgress((prev) => ({
                 ...prev,
                 processed,
                 updated,
                 failed,
-                currentTrack: `${track.artist} - ${track.title}`,
+                currentTrack: trackLabel,
+                activeTracks: Array.from(activeSlots.values()),
               }));
             }
           }),

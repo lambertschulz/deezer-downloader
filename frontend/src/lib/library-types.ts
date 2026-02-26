@@ -66,6 +66,8 @@ export interface EnrichmentProgress {
   skipped: number;
   failed: number;
   message?: string;
+  /** Currently active concurrent processes (e.g. BPM slots) */
+  activeTracks?: string[];
 }
 
 export interface EnrichmentOptions {
