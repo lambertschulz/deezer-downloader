@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { useAtomValue } from "jotai";
-import { Sparkles, Music, Calendar, Gauge, FileAudio, AlertCircle } from "lucide-react";
+import {
+  Sparkles,
+  Music,
+  Calendar,
+  Gauge,
+  FileAudio,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { libraryTracksAtom } from "@/atoms/app";
 import { useMetadataEnrichment } from "@/hooks/use-metadata-enrichment";
+import { useBpmEnrichment } from "@/hooks/use-bpm-enrichment";
 import { canWriteTags } from "@/lib/tag-writer";
-import type { EnrichmentOptions } from "@/lib/library-types";
+import type { EnrichmentProgress } from "@/lib/library-types";
 
 function StatCard({
   icon: Icon,
@@ -46,26 +55,115 @@ function StatCard({
   );
 }
 
+function ProgressPanel({ progress }: { progress: EnrichmentProgress }) {
+  const isActive = progress.status === "running" || progress.status === "cancelling";
+  const isDone = progress.status === "complete" || progress.status === "cancelled";
+
+  if (!isActive && !isDone && progress.status !== "error") return null;
+
+  return (
+    <div className="flex flex-col gap-2 p-4 rounded-lg border border-border">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium flex items-center gap-1.5">
+          {progress.status === "cancelling" && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          )}
+          {progress.status === "cancelling"
+            ? "Cancelling..."
+            : isActive
+              ? "Processing..."
+              : "Done"}
+        </span>
+        <span className="text-muted-foreground">
+          {progress.processed} / {progress.total}
+        </span>
+      </div>
+
+      <Progress
+        value={
+          progress.total > 0
+            ? (progress.processed / progress.total) * 100
+            : 0
+        }
+      />
+
+      {isActive && progress.currentTrack && (
+        <div className="text-xs text-muted-foreground truncate">
+          {progress.currentTrack}
+        </div>
+      )}
+
+      <div className="flex gap-4 text-xs">
+        <span className="text-green-500">{progress.updated} updated</span>
+        <span className="text-muted-foreground">
+          {progress.skipped} skipped
+        </span>
+        {progress.failed > 0 && (
+          <span className="text-red-500">{progress.failed} failed</span>
+        )}
+      </div>
+
+      {progress.message && isDone && (
+        <div
+          className={cn(
+            "text-sm mt-1",
+            progress.status === "cancelled"
+              ? "text-orange-500"
+              : "text-green-500",
+          )}
+        >
+          {progress.message}
+        </div>
+      )}
+
+      {progress.status === "error" && (
+        <div className="flex items-center gap-1.5 text-sm text-red-500">
+          <AlertCircle className="h-4 w-4" />
+          {progress.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LibraryEnrichPanel() {
   const tracks = useAtomValue(libraryTracksAtom);
-  const { progress, missingStats, enrichTracks, abort, resetProgress } =
-    useMetadataEnrichment();
 
-  const [options, setOptions] = useState<EnrichmentOptions>({
+  const {
+    progress: metadataProgress,
+    missingStats,
+    enrichMetadata,
+    abort: abortMetadata,
+    resetProgress: resetMetadata,
+  } = useMetadataEnrichment();
+
+  const {
+    progress: bpmProgress,
+    missingBpm,
+    enrichBpm,
+    abort: abortBpm,
+    resetProgress: resetBpm,
+  } = useBpmEnrichment();
+
+  const [metadataOptions, setMetadataOptions] = useState({
     genre: true,
-    bpm: true,
     year: true,
     writeToFiles: true,
   });
 
+  const [bpmWriteToFiles, setBpmWriteToFiles] = useState(true);
+
   const writableCount = tracks.filter((t) => canWriteTags(t.format)).length;
   const nonWritableCount = tracks.length - writableCount;
-  const isRunning = progress.status === "running";
-  const isDone = progress.status === "complete" || progress.status === "cancelled";
-  const totalMissing =
-    (options.genre ? missingStats.missingGenre : 0) +
-    (options.bpm ? missingStats.missingBpm : 0) +
-    (options.year ? missingStats.missingYear : 0);
+
+  const metadataActive = metadataProgress.status === "running" || metadataProgress.status === "cancelling";
+  const metadataDone = metadataProgress.status === "complete" || metadataProgress.status === "cancelled";
+  const metadataMissing =
+    (metadataOptions.genre ? missingStats.missingGenre : 0) +
+    (metadataOptions.year ? missingStats.missingYear : 0);
+
+  const bpmActive = bpmProgress.status === "running" || bpmProgress.status === "cancelling";
+  const bpmDone = bpmProgress.status === "complete" || bpmProgress.status === "cancelled";
 
   if (tracks.length === 0) {
     return (
@@ -88,7 +186,7 @@ export function LibraryEnrichPanel() {
         <StatCard
           icon={Gauge}
           label="BPM"
-          missing={missingStats.missingBpm}
+          missing={missingBpm}
           total={tracks.length}
         />
         <StatCard
@@ -99,150 +197,170 @@ export function LibraryEnrichPanel() {
         />
       </div>
 
-      {/* Options */}
+      {/* ---- Metadata Enrichment (MusicBrainz) ---- */}
       <div className="flex flex-col gap-3 p-4 rounded-lg border border-border">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
-          Enrichment Options
+          Metadata Enrichment
+          <span className="text-xs font-normal text-muted-foreground">via MusicBrainz</span>
         </h3>
 
         <div className="flex flex-wrap gap-3">
           <ToggleOption
             label="Genre"
-            sublabel="via MusicBrainz"
-            checked={options.genre}
-            disabled={isRunning}
-            onChange={(v) => setOptions((o) => ({ ...o, genre: v }))}
-          />
-          <ToggleOption
-            label="BPM"
-            sublabel="via audio analysis"
-            checked={options.bpm}
-            disabled={isRunning}
-            onChange={(v) => setOptions((o) => ({ ...o, bpm: v }))}
+            sublabel="recording + artist tags"
+            checked={metadataOptions.genre}
+            disabled={metadataActive}
+            onChange={(v) => setMetadataOptions((o) => ({ ...o, genre: v }))}
           />
           <ToggleOption
             label="Release Year"
-            sublabel="via MusicBrainz"
-            checked={options.year}
-            disabled={isRunning}
-            onChange={(v) => setOptions((o) => ({ ...o, year: v }))}
+            sublabel="first release date"
+            checked={metadataOptions.year}
+            disabled={metadataActive}
+            onChange={(v) => setMetadataOptions((o) => ({ ...o, year: v }))}
           />
         </div>
 
-        <div className="flex items-center gap-3 pt-2 border-t border-border">
-          <ToggleOption
-            label="Write to files"
-            sublabel={`${writableCount} MP3/FLAC/M4A writable`}
-            checked={options.writeToFiles}
-            disabled={isRunning}
-            onChange={(v) => setOptions((o) => ({ ...o, writeToFiles: v }))}
-          />
-          {options.writeToFiles && nonWritableCount > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <FileAudio className="h-3.5 w-3.5" />
-              {nonWritableCount} OGG/WAV/WMA files: DB only
-            </div>
-          )}
-        </div>
-      </div>
+        <WriteToFilesToggle
+          checked={metadataOptions.writeToFiles}
+          disabled={metadataActive}
+          onChange={(v) => setMetadataOptions((o) => ({ ...o, writeToFiles: v }))}
+          writableCount={writableCount}
+          nonWritableCount={nonWritableCount}
+        />
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-3">
-        {!isRunning && !isDone && (
-          <Button
-            onClick={() => enrichTracks(options)}
-            disabled={totalMissing === 0 || !options.genre && !options.bpm && !options.year}
-          >
-            <Sparkles className="h-4 w-4 mr-1.5" />
-            Start Enrichment
-            {totalMissing > 0 && (
-              <Badge variant="outline" className="ml-2">
-                ~{totalMissing} tracks
-              </Badge>
-            )}
-          </Button>
-        )}
-        {isRunning && (
-          <Button variant="destructive" onClick={abort}>
-            Cancel
-          </Button>
-        )}
-        {isDone && (
-          <Button variant="outline" onClick={resetProgress}>
-            Reset
-          </Button>
-        )}
-      </div>
-
-      {/* Progress */}
-      {(isRunning || isDone) && (
-        <div className="flex flex-col gap-2 p-4 rounded-lg border border-border">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">
-              {isRunning ? "Enriching..." : "Done"}
-            </span>
-            <span className="text-muted-foreground">
-              {progress.processed} / {progress.total}
-            </span>
-          </div>
-
-          <Progress
-            value={
-              progress.total > 0
-                ? (progress.processed / progress.total) * 100
-                : 0
-            }
-          />
-
-          {isRunning && progress.currentTrack && (
-            <div className="text-xs text-muted-foreground truncate">
-              {progress.currentTrack}
-            </div>
-          )}
-
-          <div className="flex gap-4 text-xs">
-            <span className="text-green-500">{progress.updated} updated</span>
-            <span className="text-muted-foreground">
-              {progress.skipped} skipped
-            </span>
-            {progress.failed > 0 && (
-              <span className="text-red-500">{progress.failed} failed</span>
-            )}
-          </div>
-
-          {progress.message && isDone && (
-            <div
-              className={cn(
-                "text-sm mt-1",
-                progress.status === "cancelled"
-                  ? "text-orange-500"
-                  : "text-green-500",
-              )}
+        <div className="flex items-center gap-3">
+          {!metadataActive && !metadataDone && (
+            <Button
+              onClick={() => enrichMetadata(metadataOptions)}
+              disabled={metadataMissing === 0 || (!metadataOptions.genre && !metadataOptions.year)}
+              size="sm"
             >
-              {progress.message}
-            </div>
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              Start Metadata Enrichment
+              {metadataMissing > 0 && (
+                <Badge variant="outline" className="ml-2">
+                  ~{metadataMissing}
+                </Badge>
+              )}
+            </Button>
           )}
+          {metadataProgress.status === "running" && (
+            <Button variant="destructive" size="sm" onClick={abortMetadata}>
+              Cancel
+            </Button>
+          )}
+          {metadataProgress.status === "cancelling" && (
+            <Button variant="outline" size="sm" disabled>
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              Cancelling...
+            </Button>
+          )}
+          {metadataDone && (
+            <Button variant="outline" size="sm" onClick={resetMetadata}>
+              Reset
+            </Button>
+          )}
+        </div>
 
-          {progress.status === "error" && (
-            <div className="flex items-center gap-1.5 text-sm text-red-500">
-              <AlertCircle className="h-4 w-4" />
-              {progress.message}
-            </div>
+        <ProgressPanel progress={metadataProgress} />
+
+        <div className="text-xs text-muted-foreground">
+          Rate limited to 1 request/second (MusicBrainz ToS). Sequential processing.
+        </div>
+      </div>
+
+      {/* ---- BPM Analysis ---- */}
+      <div className="flex flex-col gap-3 p-4 rounded-lg border border-border">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Gauge className="h-4 w-4" />
+          BPM Analysis
+          <span className="text-xs font-normal text-muted-foreground">via audio analysis</span>
+        </h3>
+
+        <WriteToFilesToggle
+          checked={bpmWriteToFiles}
+          disabled={bpmActive}
+          onChange={setBpmWriteToFiles}
+          writableCount={writableCount}
+          nonWritableCount={nonWritableCount}
+        />
+
+        <div className="flex items-center gap-3">
+          {!bpmActive && !bpmDone && (
+            <Button
+              onClick={() => enrichBpm(bpmWriteToFiles)}
+              disabled={missingBpm === 0}
+              size="sm"
+            >
+              <Gauge className="h-4 w-4 mr-1.5" />
+              Start BPM Analysis
+              {missingBpm > 0 && (
+                <Badge variant="outline" className="ml-2">
+                  {missingBpm} tracks
+                </Badge>
+              )}
+            </Button>
           )}
+          {bpmProgress.status === "running" && (
+            <Button variant="destructive" size="sm" onClick={abortBpm}>
+              Cancel
+            </Button>
+          )}
+          {bpmProgress.status === "cancelling" && (
+            <Button variant="outline" size="sm" disabled>
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              Cancelling...
+            </Button>
+          )}
+          {bpmDone && (
+            <Button variant="outline" size="sm" onClick={resetBpm}>
+              Reset
+            </Button>
+          )}
+        </div>
+
+        <ProgressPanel progress={bpmProgress} />
+
+        <div className="text-xs text-muted-foreground">
+          Parallel processing (6 concurrent). BPMs are saved immediately as detected.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Shared sub-components ----
+
+function WriteToFilesToggle({
+  checked,
+  disabled,
+  onChange,
+  writableCount,
+  nonWritableCount,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (v: boolean) => void;
+  writableCount: number;
+  nonWritableCount: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 pt-2 border-t border-border">
+      <ToggleOption
+        label="Write to files"
+        sublabel={`${writableCount} MP3/FLAC/M4A writable`}
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+      />
+      {checked && nonWritableCount > 0 && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <FileAudio className="h-3.5 w-3.5" />
+          {nonWritableCount} OGG/WAV/WMA files: DB only
         </div>
       )}
-
-      {/* Info note */}
-      <div className="text-xs text-muted-foreground flex items-start gap-2 p-3 rounded-lg bg-muted/30">
-        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-        <div>
-          Genre and year are fetched from{" "}
-          <span className="font-medium">MusicBrainz</span> (rate limited to
-          1 request/second). BPM is detected locally via audio analysis. This
-          may take a while for large libraries.
-        </div>
-      </div>
     </div>
   );
 }

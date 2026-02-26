@@ -58,7 +58,7 @@ export interface DuplicateGroup {
 // ---- Metadata Enrichment ----
 
 export interface EnrichmentProgress {
-  status: "idle" | "running" | "complete" | "error" | "cancelled";
+  status: "idle" | "running" | "cancelling" | "complete" | "error" | "cancelled";
   processed: number;
   total: number;
   currentTrack: string;
@@ -70,7 +70,6 @@ export interface EnrichmentProgress {
 
 export interface EnrichmentOptions {
   genre: boolean;
-  bpm: boolean;
   year: boolean;
   writeToFiles: boolean;
 }

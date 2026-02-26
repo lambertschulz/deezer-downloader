@@ -107,6 +107,15 @@ export const enrichmentProgressAtom = atom<EnrichmentProgress>({
   skipped: 0,
   failed: 0,
 });
+export const bpmProgressAtom = atom<EnrichmentProgress>({
+  status: "idle",
+  processed: 0,
+  total: 0,
+  currentTrack: "",
+  updated: 0,
+  skipped: 0,
+  failed: 0,
+});
 export const hashingProgressAtom = atom<HashingProgress>({
   status: "idle",
   processed: 0,
