@@ -107,6 +107,9 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
               format: ext,
               lastModified: file.lastModified,
               indexedAt: Date.now(),
+              bpm: null,
+              audioHash: null,
+              enrichedAt: null,
             };
 
             batch.push(track);

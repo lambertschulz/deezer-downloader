@@ -1,13 +1,21 @@
 import { useMemo } from "react";
+import { useAtom, useAtomValue } from "jotai";
 import { useLibrary } from "@/hooks/use-library";
-import { useAtomValue } from "jotai";
-import { librarySearchResultsAtom, libraryTracksAtom } from "@/atoms/app";
+import {
+  librarySearchResultsAtom,
+  librarySubTabAtom,
+  libraryTracksAtom,
+} from "@/atoms/app";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LibrarySearchBar } from "./library-search-bar";
 import { LibraryScanPanel } from "./library-scan-panel";
 import { LibraryStats } from "./library-stats";
 import { LibraryResultsGrid } from "./library-results-table";
 import { LibraryFilterBar } from "./library-filter-bar";
 import { LibraryUnsupported } from "./library-unsupported";
+import { LibraryEnrichPanel } from "./library-enrich-panel";
+import { LibraryDuplicatesPage } from "./library-duplicates-page";
+import type { LibrarySubTab } from "@/lib/library-types";
 
 export function LibraryPage() {
   const {
@@ -30,6 +38,7 @@ export function LibraryPage() {
 
   const searchResults = useAtomValue(librarySearchResultsAtom);
   const allTracks = useAtomValue(libraryTracksAtom);
+  const [subTab, setSubTab] = useAtom(librarySubTabAtom);
 
   // 1) text search narrows the base set
   const searchedTracks = searchQuery.trim() ? searchResults : allTracks;
@@ -59,26 +68,58 @@ export function LibraryPage() {
         onDisconnect={disconnect}
       />
 
-      {trackCount > 0 && <LibraryStats tracks={allTracks} />}
-
       {trackCount > 0 && (
-        <LibrarySearchBar value={searchQuery} onChange={search} />
-      )}
+        <Tabs
+          value={subTab}
+          onValueChange={(v) => setSubTab(v as LibrarySubTab)}
+        >
+          <TabsList>
+            <TabsTrigger value="browse">Browse</TabsTrigger>
+            <TabsTrigger value="enrich">Enrich Metadata</TabsTrigger>
+            <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
+          </TabsList>
 
-      {filters.length > 0 && (
-        <LibraryFilterBar
-          filters={filters}
-          onRemove={removeFilter}
-          onClear={clearFilters}
-        />
-      )}
+          <TabsContent value="browse">
+            <div className="flex flex-col gap-4 pt-4">
+              <LibraryStats tracks={allTracks} />
 
-      {trackCount > 0 && (
-        <LibraryResultsGrid
-          tracks={displayTracks}
-          filters={filters}
-          onToggleFilter={toggleFilter}
-        />
+              <LibrarySearchBar value={searchQuery} onChange={search} />
+
+              {filters.length > 0 && (
+                <LibraryFilterBar
+                  filters={filters}
+                  onRemove={removeFilter}
+                  onClear={clearFilters}
+                />
+              )}
+
+              <LibraryResultsGrid
+                tracks={displayTracks}
+                filters={filters}
+                onToggleFilter={toggleFilter}
+              />
+
+              {(searchQuery.trim() || filters.length > 0) &&
+                displayTracks.length === 0 && (
+                  <div className="text-center text-muted-foreground py-8">
+                    No matches found.
+                  </div>
+                )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="enrich">
+            <div className="pt-4">
+              <LibraryEnrichPanel />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="duplicates">
+            <div className="pt-4">
+              <LibraryDuplicatesPage />
+            </div>
+          </TabsContent>
+        </Tabs>
       )}
 
       {showEmptyPrompt && (
@@ -87,14 +128,6 @@ export function LibraryPage() {
           collection.
         </div>
       )}
-
-      {(searchQuery.trim() || filters.length > 0) &&
-        displayTracks.length === 0 &&
-        trackCount > 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            No matches found.
-          </div>
-        )}
     </div>
   );
 }

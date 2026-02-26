@@ -5,7 +5,15 @@ import type {
   SearchType,
   UserProfile,
 } from "@/api/types";
-import type { LibraryFilter, LibraryTrack, ScanProgress } from "@/lib/library-types";
+import type {
+  DuplicateGroup,
+  EnrichmentProgress,
+  HashingProgress,
+  LibraryFilter,
+  LibrarySubTab,
+  LibraryTrack,
+  ScanProgress,
+} from "@/lib/library-types";
 
 // --- Tabs ---
 export type TabId = "search" | "deezer" | "debug" | "queue" | "user" | "library";
@@ -89,3 +97,20 @@ export const libraryScanProgressAtom = atom<ScanProgress>({
   currentFile: "",
 });
 export const libraryFiltersAtom = atom<LibraryFilter[]>([]);
+export const librarySubTabAtom = atom<LibrarySubTab>("browse");
+export const enrichmentProgressAtom = atom<EnrichmentProgress>({
+  status: "idle",
+  processed: 0,
+  total: 0,
+  currentTrack: "",
+  updated: 0,
+  skipped: 0,
+  failed: 0,
+});
+export const hashingProgressAtom = atom<HashingProgress>({
+  status: "idle",
+  processed: 0,
+  total: 0,
+  currentTrack: "",
+});
+export const duplicateGroupsAtom = atom<DuplicateGroup[]>([]);

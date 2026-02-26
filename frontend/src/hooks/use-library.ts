@@ -142,7 +142,7 @@ export function useLibrary() {
   const pickDirectory = useCallback(async (): Promise<boolean> => {
     if (!isSupported) return false;
     try {
-      const handle = await window.showDirectoryPicker({ mode: "read" });
+      const handle = await window.showDirectoryPicker({ mode: "readwrite" });
       await saveDirectoryHandle(handle);
       setHasStoredHandle(true);
       return true;
@@ -156,9 +156,9 @@ export function useLibrary() {
     useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
       const handle = await getDirectoryHandle();
       if (!handle) return null;
-      const perm = await handle.queryPermission({ mode: "read" });
+      const perm = await handle.queryPermission({ mode: "readwrite" });
       if (perm === "granted") return handle;
-      const requested = await handle.requestPermission({ mode: "read" });
+      const requested = await handle.requestPermission({ mode: "readwrite" });
       if (requested === "granted") return handle;
       return null;
     }, []);

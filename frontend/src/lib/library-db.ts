@@ -2,25 +2,27 @@ import { openDB, type IDBPDatabase } from "idb";
 import type { LibraryTrack, LibraryScanState } from "./library-types";
 
 const DB_NAME = "deezer-downloader-library";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 export function getLibraryDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains("tracks")) {
+      upgrade(db, oldVersion, _newVersion, transaction) {
+        if (oldVersion < 1) {
           const store = db.createObjectStore("tracks", { keyPath: "path" });
           store.createIndex("by-artist", "artist");
           store.createIndex("by-album", "album");
           store.createIndex("by-title", "title");
-        }
-        if (!db.objectStoreNames.contains("scanState")) {
           db.createObjectStore("scanState", { keyPath: "id" });
-        }
-        if (!db.objectStoreNames.contains("handles")) {
           db.createObjectStore("handles", { keyPath: "id" });
+        }
+        if (oldVersion < 2) {
+          const store = transaction.objectStore("tracks");
+          if (!store.indexNames.contains("by-audioHash")) {
+            store.createIndex("by-audioHash", "audioHash");
+          }
         }
       },
     });
@@ -103,4 +105,24 @@ export async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | 
 export async function clearDirectoryHandle(): Promise<void> {
   const db = await getLibraryDB();
   await db.delete("handles", "libraryDir");
+}
+
+// ---- Query helpers for enrichment & duplicates ----
+
+export async function getTracksWithMissingMetadata(): Promise<{
+  missingGenre: LibraryTrack[];
+  missingBpm: LibraryTrack[];
+  missingYear: LibraryTrack[];
+}> {
+  const tracks = await getAllTracks();
+  return {
+    missingGenre: tracks.filter((t) => !t.genre),
+    missingBpm: tracks.filter((t) => t.bpm === null || t.bpm === undefined),
+    missingYear: tracks.filter((t) => t.year === null || t.year === undefined),
+  };
+}
+
+export async function getTracksWithoutHash(): Promise<LibraryTrack[]> {
+  const tracks = await getAllTracks();
+  return tracks.filter((t) => !t.audioHash);
 }
