@@ -203,16 +203,29 @@ export function useLibrary() {
             });
             break;
 
-          case "batch":
-            await putTracks(msg.tracks);
+          case "batch": {
+            // Merge: preserve enrichment data from existing tracks
+            let merged: LibraryTrack[] = msg.tracks;
             setTracks((prev) => {
               const map = new Map(prev.map((t) => [t.path, t]));
-              for (const t of msg.tracks) {
-                map.set(t.path, t);
-              }
+              merged = msg.tracks.map((scanned) => {
+                const existing = map.get(scanned.path);
+                if (!existing) return scanned;
+                return {
+                  ...scanned,
+                  bpm: scanned.bpm ?? existing.bpm,
+                  genre: scanned.genre || existing.genre,
+                  year: scanned.year ?? existing.year,
+                  audioHash: existing.audioHash,
+                  enrichedAt: existing.enrichedAt,
+                };
+              });
+              for (const t of merged) map.set(t.path, t);
               return Array.from(map.values());
             });
+            await putTracks(merged);
             break;
+          }
 
           case "removed":
             await removeTracks(msg.paths);

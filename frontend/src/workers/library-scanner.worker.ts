@@ -107,7 +107,7 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
               format: ext,
               lastModified: file.lastModified,
               indexedAt: Date.now(),
-              bpm: null,
+              bpm: common.bpm ?? null,
               audioHash: null,
               enrichedAt: null,
             };
