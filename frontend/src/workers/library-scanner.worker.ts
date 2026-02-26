@@ -7,7 +7,10 @@ const SUPPORTED_EXTENSIONS = new Set([
   "mp3", "flac", "ogg", "wav", "m4a", "aac", "wma", "opus",
 ]);
 const BATCH_SIZE = 50;
-const CONCURRENCY = 4;
+const CONCURRENCY = 8;
+
+/** Throttle progress messages to avoid postMessage overhead */
+const PROGRESS_INTERVAL_MS = 150;
 
 let aborted = false;
 
@@ -67,6 +70,8 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
       // Phase 2: Parse metadata with concurrent pool
       const queue = [...toParse];
       let queueIdx = 0;
+      let lastProgressAt = 0;
+      let latestFile = "";
 
       async function processNext(): Promise<void> {
         while (queueIdx < queue.length) {
@@ -75,18 +80,24 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
           const idx = queueIdx++;
           const entry = queue[idx];
           scanned++;
+          latestFile = entry.path;
 
-          post({
-            type: "progress",
-            scanned,
-            total,
-            skipped,
-            currentFile: entry.path,
-          });
+          // Throttle progress messages
+          const now = Date.now();
+          if (now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
+            lastProgressAt = now;
+            post({
+              type: "progress",
+              scanned,
+              total,
+              skipped,
+              currentFile: latestFile,
+            });
+          }
 
           try {
             const file = await entry.handle.getFile();
-            const metadata = await parseBlob(file);
+            const metadata = await parseBlob(file, { skipCovers: true });
             const common = metadata.common;
             const format = metadata.format;
             const ext = entry.path.split(".").pop()?.toLowerCase() ?? "";
@@ -136,6 +147,15 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
       if (batch.length > 0) {
         post({ type: "batch", tracks: batch });
       }
+
+      // Final progress update (throttling may have skipped the last one)
+      post({
+        type: "progress",
+        scanned,
+        total,
+        skipped,
+        currentFile: "",
+      });
 
       const durationMs = Date.now() - startTime;
       post({
