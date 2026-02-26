@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Music, Disc3, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCoverArt } from "@/hooks/use-cover-art";
 import type { LibraryTrack } from "@/lib/library-types";
 import type { LibraryFilter } from "@/lib/library-types";
 
@@ -12,6 +13,8 @@ interface AlbumGroup {
   albumArtist: string;
   trackCount: number;
   totalDuration: number;
+  /** Path to a sample track for cover art extraction */
+  firstTrackPath: string;
 }
 
 interface ArtistGroup {
@@ -51,6 +54,7 @@ function groupAlbums(tracks: LibraryTrack[]): AlbumGroup[] {
         albumArtist: t.albumArtist,
         trackCount: 1,
         totalDuration: t.duration ?? 0,
+        firstTrackPath: t.path,
       });
     }
   }
@@ -96,6 +100,40 @@ function isFilterActive(filters: LibraryFilter[], check: LibraryFilter): boolean
         return check.type === "song" && f.path === check.path;
     }
   });
+}
+
+// ---- Cover art thumbnail ----
+
+function CoverArt({
+  albumKey,
+  trackPath,
+  size = 40,
+}: {
+  albumKey: string;
+  trackPath: string;
+  size?: number;
+}) {
+  const url = useCoverArt(albumKey, trackPath);
+
+  return (
+    <div
+      className="shrink-0 rounded bg-muted flex items-center justify-center overflow-hidden"
+      style={{ width: size, height: size }}
+    >
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <Disc3
+          className="text-muted-foreground"
+          style={{ width: size * 0.5, height: size * 0.5 }}
+        />
+      )}
+    </div>
+  );
 }
 
 // ---- Section header ----
@@ -151,6 +189,11 @@ function SongsSection({
                   : "hover:bg-muted/50",
               )}
             >
+              <CoverArt
+                albumKey={`${track.albumArtist}||${track.album}`}
+                trackPath={track.path}
+                size={32}
+              />
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">{track.title}</div>
                 <div className="truncate text-xs text-muted-foreground">
@@ -210,6 +253,11 @@ function AlbumsSection({
                   : "hover:bg-muted/50",
               )}
             >
+              <CoverArt
+                albumKey={album.key}
+                trackPath={album.firstTrackPath}
+                size={40}
+              />
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">{album.album}</div>
                 <div className="truncate text-xs text-muted-foreground">

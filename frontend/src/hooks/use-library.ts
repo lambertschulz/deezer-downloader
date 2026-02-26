@@ -18,8 +18,10 @@ import {
   getDirectoryHandle,
   saveDirectoryHandle,
   clearDirectoryHandle,
+  clearCovers,
   putScanState,
 } from "@/lib/library-db";
+import { retryCoverLoading } from "@/hooks/use-cover-art";
 import type { LibraryFilter, LibraryTrack } from "@/lib/library-types";
 import type { ScanWorkerResponse } from "@/lib/scanner-types";
 
@@ -145,6 +147,7 @@ export function useLibrary() {
       const handle = await window.showDirectoryPicker({ mode: "readwrite" });
       await saveDirectoryHandle(handle);
       setHasStoredHandle(true);
+      retryCoverLoading();
       return true;
     } catch {
       return false;
@@ -157,9 +160,15 @@ export function useLibrary() {
       const handle = await getDirectoryHandle();
       if (!handle) return null;
       const perm = await handle.queryPermission({ mode: "readwrite" });
-      if (perm === "granted") return handle;
+      if (perm === "granted") {
+        retryCoverLoading();
+        return handle;
+      }
       const requested = await handle.requestPermission({ mode: "readwrite" });
-      if (requested === "granted") return handle;
+      if (requested === "granted") {
+        retryCoverLoading();
+        return handle;
+      }
       return null;
     }, []);
 
@@ -315,6 +324,7 @@ export function useLibrary() {
   const disconnect = useCallback(async () => {
     await clearDirectoryHandle();
     await clearTracks();
+    await clearCovers();
     setTracks([]);
     setSearchResults([]);
     setFilters([]);

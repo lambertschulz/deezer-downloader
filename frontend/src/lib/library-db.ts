@@ -2,7 +2,7 @@ import { openDB, type IDBPDatabase } from "idb";
 import type { LibraryTrack, LibraryScanState } from "./library-types";
 
 const DB_NAME = "deezer-downloader-library";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -23,6 +23,9 @@ export function getLibraryDB(): Promise<IDBPDatabase> {
           if (!store.indexNames.contains("by-audioHash")) {
             store.createIndex("by-audioHash", "audioHash");
           }
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore("covers", { keyPath: "key" });
         }
       },
     });
@@ -105,6 +108,24 @@ export async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | 
 export async function clearDirectoryHandle(): Promise<void> {
   const db = await getLibraryDB();
   await db.delete("handles", "libraryDir");
+}
+
+// ---- Cover Art Cache ----
+
+export async function getCover(albumKey: string): Promise<Blob | null> {
+  const db = await getLibraryDB();
+  const record = await db.get("covers", albumKey);
+  return record?.blob ?? null;
+}
+
+export async function putCover(albumKey: string, blob: Blob): Promise<void> {
+  const db = await getLibraryDB();
+  await db.put("covers", { key: albumKey, blob });
+}
+
+export async function clearCovers(): Promise<void> {
+  const db = await getLibraryDB();
+  await db.clear("covers");
 }
 
 // ---- Query helpers for enrichment & duplicates ----
