@@ -17,7 +17,7 @@ import type {
 
 // --- Tabs ---
 export type TabId = "search" | "deezer" | "debug" | "queue" | "user" | "library";
-export const activeTabAtom = atom<TabId>("search");
+export const activeTabAtom = atom<TabId>("library");
 
 // --- User ---
 export const userProfileAtom = atom<UserProfile | null>(null);

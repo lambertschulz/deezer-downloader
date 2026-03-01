@@ -79,7 +79,7 @@ export function LibraryPage() {
             <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="browse">
+          <TabsContent value="browse" forceMount className="data-[state=inactive]:hidden">
             <div className="flex flex-col gap-4 pt-4">
               <LibraryStats tracks={allTracks} />
 
@@ -108,13 +108,13 @@ export function LibraryPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="enrich">
+          <TabsContent value="enrich" forceMount className="data-[state=inactive]:hidden">
             <div className="pt-4">
               <LibraryEnrichPanel />
             </div>
           </TabsContent>
 
-          <TabsContent value="duplicates">
+          <TabsContent value="duplicates" forceMount className="data-[state=inactive]:hidden">
             <div className="pt-4">
               <LibraryDuplicatesPage />
             </div>
